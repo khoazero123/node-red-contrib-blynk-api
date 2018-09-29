@@ -19,15 +19,29 @@
 <script type="text/javascript">
 
 (function() {
-
+    function capitalizeFirstLetter(string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }
     function ws_oneditprepare() {
         /*if(this.client) {
             $("#node-input-mode").val('client').change();
         }*/
     }
     
-    function ws_oneditsave() {
+    function api_oneditsave() {
+        
+    }
 
+    function api_onConfigSave() {
+        var ws = $("#node-config-input-path").val();
+        var url = $("#node-config-input-api").val();
+        if(url) {
+            if (url.substr(-1) != '/') url += '/';
+            $("#node-config-input-api").val(url);
+        } else if(ws) {
+            url = ws.replace('/websockets', '/');
+            $("#node-config-input-api").val(url);
+        }
     }
     
     function ws_label() {
@@ -42,8 +56,9 @@
         if(this.type == 'blynk-api-out-write') {
 	        _type = 'Write';
         } 
+
         if(this.pin) {
-	        _pin ='Pin V'+ this.pin + ' - ' +  _type;
+	        _pin = capitalizeFirstLetter(this.pin_type) + ' pin ' + this.pin + ' - ' +  _type;
         }
         if(this.type == "blynk-api-out-email") {
 	        return this.name||this.email||'email';
@@ -69,12 +84,14 @@
         category: 'config',
         defaults: {
 	        name: { value: ''},
+	        api: { value: ''},
             path: {value: '', required:true, validate:RED.validators.regex(/^((?!\/debug\/ws).)*$/) },
-             key: {value: '', required:true}        
+            key: {value: '', required:true}        
         },
         inputs:0,
         outputs:0,
-        label: ws_label
+        label: ws_label,
+        oneditsave: api_onConfigSave,
     });
     
     RED.nodes.registerType('blynk-api-in-read', {
@@ -93,7 +110,7 @@
             return this.name?"node_label_italic":"";
         },
         label: ws_label,
-        oneditsave: ws_oneditsave,
+        oneditsave: api_oneditsave,
         oneditprepare: ws_oneditprepare
     });
 
@@ -113,7 +130,7 @@
             return this.name?"node_label_italic":"";
         },
         label: ws_label,
-        oneditsave: ws_oneditsave,
+        oneditsave: api_oneditsave,
         oneditprepare: ws_oneditprepare
     });
     
@@ -122,6 +139,8 @@
         paletteLabel: 'write',
         defaults: {
             name: {value: ''},
+            type_connect: {value: 'api'}, // ws - api
+            pin_type: {value: 'virtual'}, // virtual - digital - analog
             pin: {value: 0},
             client: {type: "blynk-api-client", validate: ws_validateclient}
         },
@@ -134,7 +153,7 @@
             return this.name?"node_label_italic":"";
         },
         label: ws_label,
-        oneditsave: ws_oneditsave,
+        oneditsave: api_oneditsave,
         oneditprepare: ws_oneditprepare
     });
     
@@ -155,7 +174,7 @@
             return this.name?"node_label_italic":"";
         },
         label: ws_label,
-        oneditsave: ws_oneditsave,
+        oneditsave: api_oneditsave,
         oneditprepare: ws_oneditprepare
     });
 
@@ -192,10 +211,6 @@
         <input type="text" id="node-input-client">
     </div>
     <div class="form-row">
-        <label for="node-input-pin"><i class="fa fa-tag"></i> <span>Type connect</span></label>
-        <input type="radio" name="node-input-type" value="ws"> Webscoket, <input type="radio" name="node-input-type" value="api"> Webscoket, 
-    </div>
-    <div class="form-row">
         <label for="node-input-pin"><i class="fa fa-tag"></i> <span>Virtual Pin</span></label>
         <input type="number" id="node-input-pin" min="0" max="128" placeholder="pin">
     </div>
@@ -218,8 +233,21 @@
         <input type="text" id="node-input-client">
     </div>
     <div class="form-row">
-        <label for="node-input-pin"><i class="fa fa-tag"></i> <span>Virtual Pin</span></label>
-        <input type="number" id="node-input-pin"  min="0" max="128" placeholder="pin">
+        <label for="node-input-type_connect"><i class="fa fa-tag"></i> <span>Type connect</span></label>
+        <select id="node-input-type_connect" style="width:70%">
+            <option value="ws">Websocket</option>
+            <option value="api">API</option>
+        </select>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-pin"><i class="fa fa-tag"></i> <span>Pin</span></label>
+        <select id="node-input-pin_type" style="width:25%">
+            <option value="virtual">Virtual Pin</option>
+            <option value="digital">Digital Pin</option>
+            <option value="analog">Analog Pin</option>
+        </select>
+        <input type="number" id="node-input-pin"  min="0" max="128" placeholder="pin" style="width:45%">
    	</div>
    	<div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> <span>Name</span></label>
@@ -260,15 +288,15 @@
 <!-- Blynk Server configuration node -->
 <script type="text/x-red" data-template-name="blynk-api-client">
     <div class="form-row">
-        <label for="node-config-input-path"><i class="fa fa-bookmark"></i>Url WS</label>
+        <label for="node-config-input-path"><i class="fa fa-bookmark"></i> Url WS</label>
         <input type="text" id="node-config-input-path" placeholder="ex. ws://blynk-cloud.com/websockets">
     </div>
     <div class="form-row">
-        <label for="node-config-input-api"><i class="fa fa-bookmark"></i>Endpoint API</label>
+        <label for="node-config-input-api"><i class="fa fa-bookmark"></i> Endpoint API</label>
         <input type="text" id="node-config-input-api" placeholder="ex. http://blynk-cloud.com/">
     </div>
     <div class="form-row">
-        <label for="node-config-input-key"><i class="fa fa-bookmark"></i>Auth Token</label>
+        <label for="node-config-input-key"><i class="fa fa-bookmark"></i> Auth Token</label>
         <input type="text" id="node-config-input-key" placeholder="ex. &quot;f45626c103a94983b469637978b0c78a&quot;">
     </div>
     <div class="form-row">

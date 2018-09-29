@@ -181,6 +181,7 @@ module.exports = function(RED) {
 
         // Store local copies of the node configuration (as defined in the .html)
         node.path = n.path;
+        node.api = n.api;
         node.key = n.key;
         node.wholemsg = (n.wholemsg === "true");
 
@@ -319,14 +320,53 @@ module.exports = function(RED) {
     	this.server.send(encodeCommand(MsgType.PING, 1, ''));
    	}    
 	
-    BlynkClientNode.prototype.virtualWrite = function(vpin, val) {
-	    //console.log('ping');
+    BlynkClientNode.prototype.virtualWrite = function(node, val) {
+	    var pinType = node.pin_type;
+        var pin = node.pin;
+	    var typeConnect = node.type_connect;
     	//send(this.server, 'login ' + token);
-    	var values = ['vw', vpin, val];
+    	var values = ['vw', pin, val];
 		//console.log(values);
 		var data = values.join('\0');
-		//console.log(data);		
-    	this.server.send(encodeCommand(MsgType.HARDWARE, 1, data));
+        //console.log(data);
+        if(typeConnect=='api') {
+            //var url = require('url');
+            var uri = this.api;
+            switch (pinType) {
+                case 'digital': // Digital Pin
+                    pin = 'D'+pin;
+                    break;
+                case 'analog': // Analog Pin
+                    pin = 'A'+pin;
+                    break;
+                default: // Virtual Pin
+                    pin = 'V'+pin;
+                    break;
+            }
+            uri = uri + this.key+'/update/'+pin;//+'?value='+val;
+            // console.log('API:', uri);
+            //var opts = url.parse(uri);
+            var request = require('request');
+            request({
+                method: 'PUT',
+                uri: uri,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: '["'+val+'"]'
+            }, function (error, response, body) {
+                if(error) {
+                    console.error(error);
+                    this.server.send(encodeCommand(MsgType.HARDWARE, 1, data));
+                    return;
+                }
+                //console.log('Status:', response.statusCode);
+                //console.log('Headers:', JSON.stringify(response.headers));
+                //console.log('Response:', body);
+            });
+        } else {
+            this.server.send(encodeCommand(MsgType.HARDWARE, 1, data));
+        }
    	}    
 
     BlynkClientNode.prototype.sendEmail = function(to, subject, message) {
@@ -355,7 +395,6 @@ module.exports = function(RED) {
 				if(command.array) {
 					msg.arrayOfValues = command.array;
 				}
-
 	            this._inputNodes[i].send(msg);
 	        }
         }
@@ -504,7 +543,9 @@ module.exports = function(RED) {
         RED.nodes.createNode(this,n);
         var node = this;
         this.server = n.client;
-		this.pin = n.pin;
+        this.pin = n.pin;
+        this.pin_type = n.pin_type;
+        this.type_connect = n.type_connect;
         
         this.serverConfig = RED.nodes.getNode(this.server);
         if (!this.serverConfig) {
@@ -554,7 +595,7 @@ module.exports = function(RED) {
             if (payload) {
 	            //todo: check payload and validate
 	            //console.log('write');
-	            node.serverConfig.virtualWrite(node.pin, payload);
+	            node.serverConfig.virtualWrite(node, payload);
             }
 
             
