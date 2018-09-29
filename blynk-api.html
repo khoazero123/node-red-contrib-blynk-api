@@ -33,22 +33,22 @@
     function ws_label() {
         _pin = 'no pin';
         _type = '';
-        if(this.type == 'blynk-websockets-in-read') {
+        if(this.type == 'blynk-api-in-read') {
 	        _type = 'Read Event';
         } 
-        if(this.type == 'blynk-websockets-in-write') {
+        if(this.type == 'blynk-api-in-write') {
 	        _type = 'Write Event';
         } 
-        if(this.type == 'blynk-websockets-out-write') {
+        if(this.type == 'blynk-api-out-write') {
 	        _type = 'Write';
         } 
         if(this.pin) {
 	        _pin ='Pin V'+ this.pin + ' - ' +  _type;
         }
-        if(this.type == "blynk-websockets-out-email") {
+        if(this.type == "blynk-api-out-email") {
 	        return this.name||this.email||'email';
         }
-        if(this.type == "blynk-websockets-client") {
+        if(this.type == "blynk-api-client") {
 	        return this.name||this.key||'n/a';
         }
         return this.name||_pin;
@@ -65,7 +65,7 @@
         return true;
     }
 
-    RED.nodes.registerType('blynk-websockets-client',{
+    RED.nodes.registerType('blynk-api-client',{
         category: 'config',
         defaults: {
 	        name: { value: ''},
@@ -77,13 +77,13 @@
         label: ws_label
     });
     
-    RED.nodes.registerType('blynk-websockets-in-read', {
-        category: 'blynk ws',
+    RED.nodes.registerType('blynk-api-in-read', {
+        category: 'Blynk API',
         paletteLabel: 'read event',
         defaults: {
             name: {value: ''},
             pin: {value: 0},
-            client: {type:"blynk-websockets-client", validate: ws_validateclient}
+            client: {type:"blynk-api-client", validate: ws_validateclient}
         },
         color:"#1BC17C",
         inputs:0,
@@ -97,13 +97,13 @@
         oneditprepare: ws_oneditprepare
     });
 
-   RED.nodes.registerType('blynk-websockets-in-write', {
-        category: 'blynk ws',
+   RED.nodes.registerType('blynk-api-in-write', {
+        category: 'Blynk API',
         paletteLabel: 'write event',
         defaults: {
             name: {value: ''},
             pin: {value: 0},
-            client: {type:"blynk-websockets-client", validate: ws_validateclient}
+            client: {type:"blynk-api-client", validate: ws_validateclient}
         },
         color:"#1BC17C",
         inputs:0,
@@ -117,13 +117,13 @@
         oneditprepare: ws_oneditprepare
     });
     
-    RED.nodes.registerType('blynk-websockets-out-write',{
-        category: 'blynk ws',
+    RED.nodes.registerType('blynk-api-out-write',{
+        category: 'Blynk API',
         paletteLabel: 'write',
         defaults: {
             name: {value: ''},
             pin: {value: 0},
-            client: {type: "blynk-websockets-client", validate: ws_validateclient}
+            client: {type: "blynk-api-client", validate: ws_validateclient}
         },
         color:"#1BC17C",
         inputs:1,
@@ -138,13 +138,13 @@
         oneditprepare: ws_oneditprepare
     });
     
-    RED.nodes.registerType('blynk-websockets-out-email',{
-        category: 'blynk ws',
+    RED.nodes.registerType('blynk-api-out-email',{
+        category: 'Blynk API',
         paletteLabel: 'email',
         defaults: {
             name: {value: ''},
             email: {},
-            client: {type: "blynk-websockets-client", validate: ws_validateclient}
+            client: {type: "blynk-api-client", validate: ws_validateclient}
         },
         color:"#1BC17C",
         inputs:1,
@@ -165,7 +165,7 @@
 
 
 <!-- Blynk Input Node - Read -->
-<script type="text/x-red" data-template-name="blynk-websockets-in-read">
+<script type="text/x-red" data-template-name="blynk-api-in-read">
     <div class="form-row" id="websocket-client-row">
         <label for="node-input-client"><i class="fa fa-bookmark"></i> <span>Connection</span></label>
         <input type="text" id="node-input-client">
@@ -180,20 +180,24 @@
     </div>
 </script>
 
-<script type="text/x-red" data-help-name="blynk-websockets-in-read">
+<script type="text/x-red" data-help-name="blynk-api-in-read">
     <p>Blynk read event node.</p>
     <p>msg.payload will contain the virtual pin number that triggered the read event</p>
 </script>
 
 <!-- Blynk Input Node - Write -->
-<script type="text/x-red" data-template-name="blynk-websockets-in-write">
+<script type="text/x-red" data-template-name="blynk-api-in-write">
     <div class="form-row" id="websocket-client-row">
         <label for="node-input-client"><i class="fa fa-bookmark"></i> <span>Connection</span></label>
         <input type="text" id="node-input-client">
     </div>
     <div class="form-row">
+        <label for="node-input-pin"><i class="fa fa-tag"></i> <span>Type connect</span></label>
+        <input type="radio" name="node-input-type" value="ws"> Webscoket, <input type="radio" name="node-input-type" value="api"> Webscoket, 
+    </div>
+    <div class="form-row">
         <label for="node-input-pin"><i class="fa fa-tag"></i> <span>Virtual Pin</span></label>
-        <input type="number" id="node-input-pin"  min="0" max="128" placeholder="pin">
+        <input type="number" id="node-input-pin" min="0" max="128" placeholder="pin">
     </div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> <span>Name</span></label>
@@ -201,14 +205,14 @@
     </div>
 </script>
 
-<script type="text/x-red" data-help-name="blynk-websockets-in-write">
+<script type="text/x-red" data-help-name="blynk-api-in-write">
     <p>Blynk write event node.</p>
     <p>msg.payload will contain the the value to write to the specified pin.</p>
     <p>msg.arrayOfValues will contain an array of values sent, useful for Widgets that have the MERGE ability.</p>
 </script>
 
 <!-- Blynk out Node - Write -->
-<script type="text/x-red" data-template-name="blynk-websockets-out-write">
+<script type="text/x-red" data-template-name="blynk-api-out-write">
     <div class="form-row" id="websocket-client-row">
         <label for="node-input-client"><i class="fa fa-bookmark"></i> <span>Connection</span></label>
         <input type="text" id="node-input-client">
@@ -223,14 +227,14 @@
     </div>
 </script>
 
-<script type="text/x-red" data-help-name="blynk-websockets-out-write">
+<script type="text/x-red" data-help-name="blynk-api-out-write">
     <p>Blynk write node.</p>
     <p>This node will write the value in payload to the specified pin number.</p>.
 </script>
 
 
 <!-- Blynk out Node - Email -->
-<script type="text/x-red" data-template-name="blynk-websockets-out-email">
+<script type="text/x-red" data-template-name="blynk-api-out-email">
     <div class="form-row" id="websocket-client-row">
         <label for="node-input-client"><i class="fa fa-bookmark"></i> <span>Connection</span></label>
         <input type="text" id="node-input-client">
@@ -245,7 +249,7 @@
     </div>
 </script>
 
-<script type="text/x-red" data-help-name="blynk-websockets-out-email">
+<script type="text/x-red" data-help-name="blynk-api-out-email">
     <p>Blynk email node.</p>
     <p>This node will send an email using your msg.topic for subject and msg.payload for content.
 	    <br />
@@ -254,14 +258,18 @@
 </script>
 
 <!-- Blynk Server configuration node -->
-<script type="text/x-red" data-template-name="blynk-websockets-client">
+<script type="text/x-red" data-template-name="blynk-api-client">
     <div class="form-row">
-        <label for="node-config-input-path"><i class="fa fa-bookmark"></i>Url</label>
-        <input type="text" id="node-config-input-path" placeholder="ws://example.com/websocket">
+        <label for="node-config-input-path"><i class="fa fa-bookmark"></i>Url WS</label>
+        <input type="text" id="node-config-input-path" placeholder="ex. ws://blynk-cloud.com/websockets">
     </div>
     <div class="form-row">
-        <label for="node-config-input-key"><i class="fa fa-bookmark"></i>Project key</label>
-        <input type="text" id="node-config-input-key" placeholder="Blynk token">
+        <label for="node-config-input-api"><i class="fa fa-bookmark"></i>Endpoint API</label>
+        <input type="text" id="node-config-input-api" placeholder="ex. http://blynk-cloud.com/">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-key"><i class="fa fa-bookmark"></i>Auth Token</label>
+        <input type="text" id="node-config-input-key" placeholder="ex. &quot;f45626c103a94983b469637978b0c78a&quot;">
     </div>
     <div class="form-row">
         <label for="node-config-input-name"><i class="fa fa-tag"></i> <span>Name</span></label>
@@ -269,11 +277,19 @@
     </div>
 
     <div class="form-tips">
-        <p>Info</p>
-
+        <p>The url websocket of Blynk Cloud Server is:<br>
+        <b>ws://blynk-cloud.com/websockets</b><br>
+        or with secure SSL:<br>
+        <b>wss://blynk-cloud.com/websockets</b>
+    </div>
+    <div class="form-tips">
+	    Url for Local server is:<br>
+        <b>ws://&lt;your-local-ip&gt;:8080/websockets</b><br>
+	    or with secure SSL:<br>
+        <b>wss://&lt;your-local-ip&gt;:9443/websockets</b></p>
     </div>
 </script>
 
-<script type="text/x-red" data-help-name="blynk-websockets-client">
+<script type="text/x-red" data-help-name="blynk-api-client">
    <p>This configuration node connects to a Blynk WebSocket Server on the specified URL.</p>
 </script>

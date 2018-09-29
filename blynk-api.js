@@ -293,7 +293,7 @@ module.exports = function(RED) {
         
     }
 
-    RED.nodes.registerType("blynk-websockets-client", BlynkClientNode);
+    RED.nodes.registerType("blynk-api-client", BlynkClientNode);
 
     BlynkClientNode.prototype.registerInputNode = function(/*Node*/handler) {
         this._inputNodes.push(handler);
@@ -469,7 +469,7 @@ module.exports = function(RED) {
         });
 
     }
-    RED.nodes.registerType("blynk-websockets-in-read", BlynkInReadNode);
+    RED.nodes.registerType("blynk-api-in-read", BlynkInReadNode);
 
 
     function BlynkInWriteNode(n) {
@@ -498,7 +498,7 @@ module.exports = function(RED) {
         });
 
     }
-    RED.nodes.registerType("blynk-websockets-in-write", BlynkInWriteNode);
+    RED.nodes.registerType("blynk-api-in-write", BlynkInWriteNode);
 
     function BlynkOutWriteNode(n) {
         RED.nodes.createNode(this,n);
@@ -560,7 +560,7 @@ module.exports = function(RED) {
             
         });
     }
-    RED.nodes.registerType("blynk-websockets-out-write", BlynkOutWriteNode);
+    RED.nodes.registerType("blynk-api-out-write", BlynkOutWriteNode);
 
     function BlynkOutEmailNode(n) {
         RED.nodes.createNode(this,n);
@@ -626,7 +626,7 @@ module.exports = function(RED) {
             
         });
     }
-    RED.nodes.registerType("blynk-websockets-out-email", BlynkOutEmailNode);
+    RED.nodes.registerType("blynk-api-out-email", BlynkOutEmailNode);
 
 
 }
