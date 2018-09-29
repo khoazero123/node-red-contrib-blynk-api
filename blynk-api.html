@@ -31,7 +31,16 @@
     function api_oneditsave() {
         
     }
-
+    function preparePinIn() {
+        $("#node-input-pin_all").on("change",function() {
+            if ($(this).is(":checked")) {
+                $("#node-input-pin").parent().hide();
+            } else {
+                $("#node-input-pin").parent().show();
+            }
+        }).change();
+    }
+    
     function api_onConfigSave() {
         var ws = $("#node-config-input-path").val();
         var url = $("#node-config-input-api").val();
@@ -80,6 +89,9 @@
         if(this.pin) {
 	        _pin = capitalizeFirstLetter(this.pin_type) + ' pin ' + this.pin + ' - ' +  _type;
         }
+        if(this.pin_all) {
+            _pin = 'All Pins' + ' - ' +  _type;
+        }
         if(this.type == "blynk-api-out-email") {
 	        return this.name||this.email||'email';
         }
@@ -120,6 +132,8 @@
         defaults: {
             name: {value: ''},
             pin: {value: 0},
+            pin_type: {value: 'virtual'},
+            pin_all: {value: 0},
             client: {type:"blynk-api-client", validate: ws_validateclient}
         },
         color:"#1BC17C",
@@ -131,7 +145,7 @@
         },
         label: ws_label,
         oneditsave: api_oneditsave,
-        oneditprepare: ws_oneditprepare
+        oneditprepare: preparePinIn
     });
 
    RED.nodes.registerType('blynk-api-in-write', {
@@ -140,6 +154,8 @@
         defaults: {
             name: {value: ''},
             pin: {value: 0},
+            pin_type: {value: 'virtual'},
+            pin_all: {value: 0},
             client: {type:"blynk-api-client", validate: ws_validateclient}
         },
         color:"#1BC17C",
@@ -151,7 +167,7 @@
         },
         label: ws_label,
         oneditsave: api_oneditsave,
-        oneditprepare: ws_oneditprepare
+        oneditprepare: preparePinIn
     });
     
     RED.nodes.registerType('blynk-api-out-write',{
@@ -210,9 +226,17 @@
         <input type="text" id="node-input-client">
     </div>
     <div class="form-row">
-        <label for="node-input-pin"><i class="fa fa-tag"></i> <span>Virtual Pin</span></label>
-        <input type="number" id="node-input-pin"  min="0" max="128" placeholder="pin">
-   </div>
+        <label for="node-input-pin_all"><i class="fa fa-cogs"></i> <span>Pins</span></label>
+        <input type="checkbox" id="node-input-pin_all"  value="1" style="width: auto; vertical-align: top;"> All Pins</span></input>
+    </div>
+    <div class="form-row">
+        <label for="node-input-pin"><i class="fa fa-tag"></i> <span>Pin</span></label>
+        <select id="node-input-pin_type" style="width:25%">
+            <option value="virtual">Virtual Pin</option>
+            <option value="digital">Digital Pin</option>
+        </select>
+        <input type="number" id="node-input-pin"  min="0" max="128" placeholder="pin" style="width:45%">
+   	</div>
    <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> <span>Name</span></label>
         <input type="text" id="node-input-name" placeholder="Name">
@@ -231,9 +255,17 @@
         <input type="text" id="node-input-client">
     </div>
     <div class="form-row">
-        <label for="node-input-pin"><i class="fa fa-tag"></i> <span>Virtual Pin</span></label>
-        <input type="number" id="node-input-pin" min="0" max="128" placeholder="pin">
+        <label for="node-input-pin_all"><i class="fa fa-cogs"></i> <span>Pins</span></label>
+        <input type="checkbox" id="node-input-pin_all"  value="1" style="width: auto; vertical-align: top;"> All Pins</span></input>
     </div>
+    <div class="form-row">
+        <label for="node-input-pin"><i class="fa fa-tag"></i> <span>Pin</span></label>
+        <select id="node-input-pin_type" style="width:25%">
+            <option value="virtual">Virtual Pin</option>
+            <option value="digital">Digital Pin</option>
+        </select>
+        <input type="number" id="node-input-pin"  min="0" max="128" placeholder="pin" style="width:45%">
+   	</div>
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> <span>Name</span></label>
         <input type="text" id="node-input-name" placeholder="Name">

@@ -251,9 +251,13 @@ module.exports = function(RED) {
 		                case MsgType.HARDWARE:
 		                	switch(cmd.operation) {
 			                	//input nodes
+			                	case 'dw':
+			                	case 'aw':
 			                	case 'vw':
 			                		node.handleWriteEvent(cmd);
 			                		break;
+			                	case 'dr':
+			                	case 'ar':
 			                	case 'vr':
 			                		node.handleReadEvent(cmd);
 			                		break;
@@ -401,13 +405,29 @@ module.exports = function(RED) {
 	    console.log('handle request write event', command);
         
         for (var i = 0; i < this._inputNodes.length; i++) {
-	        if(this._inputNodes[i].nodeType == 'write' && this._inputNodes[i].pin == command.pin) {
+	        if(this._inputNodes[i].nodeType == 'write' && (this._inputNodes[i].pin_all || this._inputNodes[i].pin == command.pin)) {
 	          	var msg;
-
+                
 		        msg = {
-		            payload: command.value
-		        };
-				
+		            payload: command.value,
+		            pin: command.pin
+                };
+                
+				switch (command.operation) {
+                    case 'dw':
+                        msg.pin_type = 'digital';
+                        break;
+                    case 'vw':
+                        msg.pin_type = 'virtual';
+                        break;
+                    case 'aw':
+                        msg.pin_type = 'analog';
+                        break;
+                
+                    default:
+                        console.error(command);
+                        break;
+                }
 				if(command.array) {
 					msg.arrayOfValues = command.array;
 				}
@@ -421,12 +441,28 @@ module.exports = function(RED) {
        //msg._session = {type:"websocket", id:id};
         
         for (var i = 0; i < this._inputNodes.length; i++) {
-	        if(this._inputNodes[i].nodeType == 'read' && this._inputNodes[i].pin == command.pin) {
+	        if(this._inputNodes[i].nodeType == 'read' && (this._inputNodes[i].pin_all || this._inputNodes[i].pin == command.pin)) {
 	          	var msg;
 
 		        msg = {
-		            payload: this._inputNodes[i].pin
-		        };
+		            payload: /* this._inputNodes[i].pin ? this._inputNodes[i].pin : */ command.pin
+                };
+                
+                switch (command.operation) {
+                    case 'dr':
+                        msg.pin_type = 'digital';
+                        break;
+                    case 'vr':
+                        msg.pin_type = 'virtual';
+                        break;
+                    case 'ar':
+                        msg.pin_type = 'analog';
+                        break;
+                
+                    default:
+                        console.error(command);
+                        break;
+                }
 
 	            this._inputNodes[i].send(msg);
 	        }
@@ -505,7 +541,9 @@ module.exports = function(RED) {
         this.serverConfig = RED.nodes.getNode(this.server);
         
 		this.nodeType = 'read';
-		this.pin = n.pin;
+        this.pin = n.pin;
+        this.pin_type = n.pin_type;
+        this.pin_all = n.pin_all;
 		console.log('new in read', this.pin);
         
         if (this.serverConfig) {
@@ -534,7 +572,9 @@ module.exports = function(RED) {
         this.serverConfig = RED.nodes.getNode(this.server);
         
 		this.nodeType = 'write';
-		this.pin = n.pin;
+        this.pin = n.pin;
+        this.pin_type = n.pin_type;
+        this.pin_all = n.pin_all;
 		console.log('new in write', this.pin);
         
         if (this.serverConfig) {
