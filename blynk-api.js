@@ -321,6 +321,7 @@ module.exports = function(RED) {
    	}    
 	
     BlynkClientNode.prototype.virtualWrite = function(node, val) {
+        var server = this.server;
 	    var pinType = node.pin_type;
         var pin = node.pin;
 	    var typeConnect = node.type_connect;
@@ -372,7 +373,7 @@ module.exports = function(RED) {
             }, function (error, response, body) {
                 if(error) {
                     console.error(error);
-                    this.server.send(encodeCommand(MsgType.HARDWARE, 1, data));
+                    server.send(encodeCommand(MsgType.HARDWARE, 1, data));
                     return;
                 }
                 //console.log('Status:', response.statusCode);
