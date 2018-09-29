@@ -1,19 +1,14 @@
-# node-red-contrib-blynk-websockets
-Blynk app integration with Node Red using WebSockets protocol
+# node-red-contrib-blynk-api
+Blynk app integration with Node Red using WebSockets protocol and http protocol (API)
 
-## Websockets version
-This works for both local and cloud BLynk servers.
-For local, wss:// works if you ve got a certificate installed on BLynk server.
-FOr cloud Blynk server, only non ssl, ws:// works for the time being, as there is no SSL cert installed.
-You can use ws://cloud.blynk.cc:8082/ws as the server url.
-
-[![NPM](https://nodei.co/npm/node-red-contrib-blynk-websockets.png?mini=true)](https://npmjs.org/package/node-red-contrib-blynk-websockets)
-[![npm version](https://badge.fury.io/js/node-red-contrib-blynk-websockets.svg)](https://badge.fury.io/js/node-red-contrib-blynk-websockets)
+[![NPM](https://nodei.co/npm/node-red-contrib-blynk-api.png?mini=true)](https://npmjs.org/package/node-red-contrib-blynk-api)
+[![npm version](https://badge.fury.io/js/node-red-contrib-blynk-api.svg)](https://badge.fury.io/js/node-red-contrib-blynk-api)
 
 If you installed Node Red globally use this to install
-```npm install --global node-red-contrib-blynk-websockets```
+```npm install --global node-red-contrib-blynk-api```
 
-Supports both SSL wss:// and non secured ws:// connection to local server.
+
+![Node properties](./node-properties.png)
 
 ### Supported events and widgets
 - read event
