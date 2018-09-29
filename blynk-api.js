@@ -324,8 +324,21 @@ module.exports = function(RED) {
 	    var pinType = node.pin_type;
         var pin = node.pin;
 	    var typeConnect = node.type_connect;
-    	//send(this.server, 'login ' + token);
-    	var values = ['vw', pin, val];
+        //send(this.server, 'login ' + token);
+        var values;
+        switch (pinType) {
+            case 'digital': // Digital Pin
+                values = ['dw', pin, val];
+                break;
+            case 'analog': // Analog Pin
+                values = ['aw', pin, val];
+                break;
+            default: // Virtual Pin
+                values = ['vw', pin, val];
+                break;
+        }
+
+    	//var values = ['vw', pin, val];
 		//console.log(values);
 		var data = values.join('\0');
         //console.log(data);
@@ -334,18 +347,20 @@ module.exports = function(RED) {
             var uri = this.api;
             switch (pinType) {
                 case 'digital': // Digital Pin
-                    pin = 'D'+pin;
+                    //pin = 'D'+pin;
+                    uri = uri + this.key+'/update/D'+pin;
                     break;
                 case 'analog': // Analog Pin
-                    pin = 'A'+pin;
+                    //pin = 'A'+pin;
+                    uri = uri + this.key+'/update/A'+pin;
                     break;
                 default: // Virtual Pin
-                    pin = 'V'+pin;
+                    //pin = 'V'+pin;
+                    uri = uri + this.key+'/update/V'+pin;
                     break;
             }
-            uri = uri + this.key+'/update/'+pin;//+'?value='+val;
+            //uri = uri + this.key+'/update/'+pin;//+'?value='+val;
             // console.log('API:', uri);
-            //var opts = url.parse(uri);
             var request = require('request');
             request({
                 method: 'PUT',

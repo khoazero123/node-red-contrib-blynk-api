@@ -43,6 +43,26 @@
             $("#node-config-input-api").val(url);
         }
     }
+
+    $(document).on('change', 'select#node-input-type_connect', function() {
+        var typeConnect = this.value;
+        // if(typeConnect == 'ws' && $("#node-input-pin_type").val() != 'virtual') {}
+        if(typeConnect == 'ws') {
+            //$('select#node-input-pin_type option[value="digital"]').attr('disabled','disabled');
+            $('select#node-input-pin_type option[value!="virtual"]').attr('disabled','disabled');
+            $("#node-input-pin_type").val('virtual');
+        } else {
+            $('select#node-input-pin_type option[value!="virtual"]').removeAttr('disabled');
+        }
+    });
+
+    $(document).on('change', 'select#node-input-pin_type', function() {
+        var pinType = this.value;
+        if(pinType != 'virtual' && $("#node-input-type_connect").val() != 'api') {
+            // alert('Digital pin only send via API');
+            $("#node-input-type_connect").val('api');
+        }
+    });
     
     function ws_label() {
         _pin = 'no pin';
@@ -139,7 +159,7 @@
         paletteLabel: 'write',
         defaults: {
             name: {value: ''},
-            type_connect: {value: 'api'}, // ws - api
+            type_connect: {value: 'ws'}, // ws - api
             pin_type: {value: 'virtual'}, // virtual - digital - analog
             pin: {value: 0},
             client: {type: "blynk-api-client", validate: ws_validateclient}
@@ -245,7 +265,7 @@
         <select id="node-input-pin_type" style="width:25%">
             <option value="virtual">Virtual Pin</option>
             <option value="digital">Digital Pin</option>
-            <option value="analog">Analog Pin</option>
+            <!-- <option value="analog">Analog Pin</option> -->
         </select>
         <input type="number" id="node-input-pin"  min="0" max="128" placeholder="pin" style="width:45%">
    	</div>
