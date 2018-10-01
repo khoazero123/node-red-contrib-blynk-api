@@ -428,6 +428,9 @@ module.exports = function(RED) {
                         console.error(command);
                         break;
                 }
+                if(!this._inputNodes[i].pin_all && this._inputNodes[i].pin_type != msg.pin_type) {
+                    continue;
+                }
 				if(command.array) {
 					msg.arrayOfValues = command.array;
 				}
@@ -463,7 +466,10 @@ module.exports = function(RED) {
                         console.error(command);
                         break;
                 }
-
+                
+                if(!this._inputNodes[i].pin_all && this._inputNodes[i].pin_type != msg.pin_type) {
+                    continue;
+                }
 	            this._inputNodes[i].send(msg);
 	        }
         }
