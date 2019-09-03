@@ -15,67 +15,72 @@
  **/
 
 module.exports = function(RED) {
-    "use strict";
-    var ws = require("ws");
-    var inspect = require("util").inspect;
-    var DataView = require('buffer-dataview');
+  'use strict';
+  var ws = require('ws');
+  var inspect = require('util').inspect;
+  var DataView = require('buffer-dataview');
+  var request = require('request');
 
-	//BLYNK STUFF
-    function messageToDebugString(bufArray) {
-        var dataview = new DataView(bufArray);
-        var cmdString = getStringByCommandCode(dataview.getInt8(0));
-        var msgId = dataview.getUint16(1);
-        var responseCode = getStatusByCode(dataview.getUint16(3));
-        return "Command : " + cmdString + ", msgId : " + msgId + ", responseCode : " + responseCode;
-    }
-    
-    function decodeCommand(bufArray) {
-        var dataview = new DataView(bufArray);
-        var command = {};
-        command.type = dataview.getInt8(0);
-        command.typeString = getStringByCommandCode(dataview.getInt8(0));
-        command.msgId = dataview.getUint16(1);
-        
-        if(command.type == MsgType.HARDWARE) {
-			command.len = dataview.getUint16(3);;
+  //BLYNK STUFF
+  function messageToDebugString(bufArray) {
+    var dataview = new DataView(bufArray);
+    var cmdString = getStringByCommandCode(dataview.getInt8(0));
+    var msgId = dataview.getUint16(1);
+    var responseCode = getStatusByCode(dataview.getUint16(3));
+    return (
+      'Command : ' +
+      cmdString +
+      ', msgId : ' +
+      msgId +
+      ', responseCode : ' +
+      responseCode
+    );
+  }
 
-			command.body = '';
-			for (var i = 0, offset =  5; i < command.len; i++, offset ++) {
-                //dataview.setInt8(offset, cmdBody.charCodeAt(i));
-                command.body += String.fromCharCode(dataview.getInt8(offset));
-            }
-            if(command.body != '') {
-	            var values = command.body.split('\0');
-	            if(values.length > 1) {
-		            command.operation = values[0];
-		            command.pin = values[1];
-		            if(values.length > 2) {
-			            command.value = values[2];
-						//we have an array of commands, return array as well
-						command.array = values.slice(2, values.length);
-		            }
-		            
-	            }
-            }
-        } else {
-	        command.status = dataview.getUint16(3);
+  function decodeCommand(bufArray) {
+    var dataview = new DataView(bufArray);
+    var command = {};
+    command.type = dataview.getInt8(0);
+    command.typeString = getStringByCommandCode(dataview.getInt8(0));
+    command.msgId = dataview.getUint16(1);
+
+    if (command.type == MsgType.HARDWARE) {
+      command.len = dataview.getUint16(3);
+
+      command.body = '';
+      for (var i = 0, offset = 5; i < command.len; i++, offset++) {
+        //dataview.setInt8(offset, cmdBody.charCodeAt(i));
+        command.body += String.fromCharCode(dataview.getInt8(offset));
+      }
+      if (command.body != '') {
+        var values = command.body.split('\0');
+        if (values.length > 1) {
+          command.operation = values[0];
+          command.pin = values[1];
+          if (values.length > 2) {
+            command.value = values[2];
+            //we have an array of commands, return array as well
+            command.array = values.slice(2, values.length);
+          }
         }
-        return command;
+      }
+    } else {
+      command.status = dataview.getUint16(3);
     }
-    
-    //send
-    //create message
-    //- get command by string
-    //- build blynk message
-    //send
-    
-    /*
+    return command;
+  }
+
+  //send
+  //create message
+  //- get command by string
+  //- build blynk message
+  //send
+
+  /*
     function send(socket, data) {
         if (socket.readyState == ws.OPEN) {
             var commandAndBody = data.split(" ");
             var message = createMessage(commandAndBody);
-            //console.log('sending : ' + data + '\r\n', message);
-        
             socket.send(message);
         } else {
             console.log("The socket is not open.");
@@ -89,388 +94,436 @@ module.exports = function(RED) {
         return buildBlynkMessage(cmd, 1, cmdBody);
     }
     */
-    function encodeCommand(command, msgId, body) {
-        var BLYNK_HEADER_SIZE = 5;
-        var bodyLength = (body ? body.length : 0);
-        var bufArray = new Buffer(BLYNK_HEADER_SIZE + bodyLength);
-        var dataview = new DataView(bufArray);
-        dataview.setInt8(0, command);
-        dataview.setInt16(1, msgId);
-        dataview.setInt16(3, bodyLength);
-        if (bodyLength > 0) {
-            //todo optimize. should be better way
-            var buf = new ArrayBuffer(bodyLength); // 2 bytes for each char
-            var bufView = new Uint8Array(buf);
-            for (var i = 0, offset =  5; i < body.length; i++, offset += 1) {
-                dataview.setInt8(offset, body.charCodeAt(i));
-            }
-        }
-        return new Uint8Array(bufArray);
+  function encodeCommand(command, msgId, body) {
+    var BLYNK_HEADER_SIZE = 5;
+    var bodyLength = body ? body.length : 0;
+    var bufArray = new Buffer(BLYNK_HEADER_SIZE + bodyLength);
+    var dataview = new DataView(bufArray);
+    dataview.setInt8(0, command);
+    dataview.setInt16(1, msgId);
+    dataview.setInt16(3, bodyLength);
+    if (bodyLength > 0) {
+      //todo optimize. should be better way
+      var buf = new ArrayBuffer(bodyLength); // 2 bytes for each char
+      var bufView = new Uint8Array(buf);
+      for (var i = 0, offset = 5; i < body.length; i++, offset += 1) {
+        dataview.setInt8(offset, body.charCodeAt(i));
+      }
     }
-    
-    
-    var MsgType = {
-	    RESPONSE      :  0,
-	    LOGIN         :  2,
-	    PING          :  6,
-	    TWEET         :  12,
-	    EMAIL         :  13,
-	    NOTIFY        :  14,
-	    BRIDGE        :  15,
-	    HW_SYNC       :  16,
-	    HW_INFO       :  17,
-	    HARDWARE      :  20
-	};
-	
-	var MsgStatus = {
-	    OK                    :  200,
-	    ILLEGAL_COMMAND       :  2,
-	    NO_ACTIVE_DASHBOARD   :  8,
-	    INVALID_TOKEN         :  9,
-	    ILLEGAL_COMMAND_BODY  : 11
-	};
-	
-	function getCommandByString(cmdString) {
-	    switch (cmdString) {
-	        case "ping" :
-	            return MsgType.PING;
-	        case "login" :
-	            return MsgType.LOGIN;
-	        case "hardware" :
-	            return MsgType.HARDWARE;
-	    }
-	}
-	
-	function getStringByCommandCode(cmd) {
-	    switch (cmd) {
-	        case 0 :
-	            return "RESPONSE";
-	        case 20 :
-	            return "HARDWARE";
-	    }
-	}
-	
-	function getStatusByCode(statusCode) {
-	    switch (statusCode) {
-	        case 200 :
-	            return "OK";
-	        case 2 :
-	            return "ILLEGAL_COMMAND";
-	        case 8 :
-	            return "NO_ACTIVE_DASHBOARD";
-	        case 9 :
-	            return "INVALID_TOKEN";
-	        case 11 :
-	            return "ILLEGAL_COMMAND_BODY";
-	    }
-	}
-	//END BLYNK STUFF
+    return new Uint8Array(bufArray);
+  }
 
-    // A node red node that sets up a local websocket server
-    function BlynkClientNode(n) {
-        // Create a RED node
-        RED.nodes.createNode(this,n);
-        var node = this;
+  var MsgType = {
+    RESPONSE: 0,
+    LOGIN: 2,
+    PING: 6,
+    TWEET: 12,
+    EMAIL: 13,
+    NOTIFY: 14,
+    BRIDGE: 15,
+    HW_SYNC: 16,
+    HW_INFO: 17,
+    HARDWARE: 20
+  };
 
-        // Store local copies of the node configuration (as defined in the .html)
-        node.path = n.path;
-        node.api = n.api;
-        node.key = n.key;
-        node.wholemsg = (n.wholemsg === "true");
+  var MsgStatus = {
+    OK: 200,
+    ILLEGAL_COMMAND: 2,
+    NO_ACTIVE_DASHBOARD: 8,
+    INVALID_TOKEN: 9,
+    ILLEGAL_COMMAND_BODY: 11
+  };
 
-        node._inputNodes = [];    // collection of nodes that want to receive events
-        node._clients = {};
-        // match absolute url
-        node.isServer = false;
-        node.closing = false;
-		node.working = false;
-		
-		node.setMaxListeners(100);
-		
-		node.pinger = setInterval(function() {
-			//only ping if connected and working
-        	if(node.working) {
-	        	node.ping();
-        	}
-    	}, 5000);
-		
-        function startconn() {    // Connect to remote endpoint
-	        //should not start connection if no server or key
-	        node.working = false;
-            var socket = new ws(node.path);
-			//socket.binaryType = 'arraybuffer'; //probably does not work
-            node.server = socket; // keep for closing
-            handleConnection(socket);
-        }
+  function getCommandByString(cmdString) {
+    switch (cmdString) {
+      case 'ping':
+        return MsgType.PING;
+      case 'login':
+        return MsgType.LOGIN;
+      case 'hardware':
+        return MsgType.HARDWARE;
+    }
+  }
 
-        function handleConnection(/*socket*/socket) {
-            var id = (1+Math.random()*4294967295).toString(16);
-            socket.setMaxListeners(100);
-            socket.on('open',function() {
-	            node.working = false;
-	            //do login
-	            //send(node.server, 'login ' + node.key )
-	            node.login(node.key);
-                node.emit('opened','');
-            });
-            
-            socket.on('close', function() {
-                node.emit('closed');
-                node.working = false;
-                if (!node.closing) {
-                    node.tout = setTimeout(function(){ startconn(); }, 5000); // try to reconnect every 5 secs... bit fast ?
-                }
-            });
-            socket.on('message', function(data, flags) {
-	            //should check if login message OK, then set to working state
-	            var cmd = decodeCommand(data);
-	            //first ok is a valid login
-	            if(!node.working && cmd.type == MsgType.RESPONSE && cmd.status == MsgStatus.OK) {
-		            // console.log('valid login, start everything');
-					node.working = true;
-					node.emit('connected','');
-		            //start ping
-	            } else {
-		            //should really just send command
-	                //node.handleEvent(id, socket, 'message', data, flags);
-	                switch(cmd.type) {
-		                //MsgType.LOGIN
-		                case MsgType.RESPONSE:
-		                	//response, ignoring
-		                	break;
-		                case MsgType.HARDWARE:
-		                	switch(cmd.operation) {
-			                	//input nodes
-			                	case 'dw':
-			                	case 'aw':
-			                	case 'vw':
-			                		node.handleWriteEvent(cmd);
-			                		break;
-			                	case 'dr':
-			                	case 'ar':
-			                	case 'vr':
-			                		node.handleReadEvent(cmd);
-                                    break;
-                                case 'pm':
-                                    /**
-                                    {
-                                        type: 20,
-                                        typeString: 'HARDWARE',
-                                        msgId: 1,
-                                        len: 39,
-                                        body: 'pm\u00000\u0000out\u00001\u0000out\u00002\u0000out\u00003\u0000out\u00004\u0000out\u000023\u0000out',
-                                        operation: 'pm',
-                                        pin: '0',
-                                        value: 'out',
-                                        array: ['out', '1', 'out', '2', 'out', '3', 'out', '4', 'out', '23', 'out']
-                                    }
-                                     */
-                                    break;
-			                	default:
-			                		console.log('Unhandled operation', cmd);
-		                	}
-		                	break;
-						default:
-							console.log('Unhandled response', cmd);
-					}
-	            }
-            });
-            socket.on('error', function(err) {
-                node.emit('erro');
-                node.working = false;
-                if (!node.closing) {
-                    node.tout = setTimeout(function(){ startconn(); }, 5000); // try to reconnect every 5 secs... bit fast ?
-                }
-            });
-        }
+  function getStringByCommandCode(cmd) {
+    switch (cmd) {
+      case 0:
+        return 'RESPONSE';
+      case 20:
+        return 'HARDWARE';
+    }
+  }
 
+  function getStatusByCode(statusCode) {
+    switch (statusCode) {
+      case 200:
+        return 'OK';
+      case 2:
+        return 'ILLEGAL_COMMAND';
+      case 8:
+        return 'NO_ACTIVE_DASHBOARD';
+      case 9:
+        return 'INVALID_TOKEN';
+      case 11:
+        return 'ILLEGAL_COMMAND_BODY';
+    }
+  }
+  //END BLYNK STUFF
 
-        node.closing = false;
-        startconn(); // start outbound connection
+  // A node red node that sets up a local websocket server
+  function BlynkClientNode(n) {
+    // Create a RED node
+    RED.nodes.createNode(this, n);
+    var node = this;
 
-        node.on("close", function() {
-            // Workaround https://github.com/einaros/ws/pull/253
-            // Remove listeners from RED.server
-            
-            node.closing = true;
-            node.working = false;
-            node.server.close();
-            if (node.tout) { clearTimeout(node.tout); }
-        });
+    // Store local copies of the node configuration (as defined in the .html)
+    node.path = n.path;
+    node.api = n.api;
+    node.key = n.key;
+    node.wholemsg = n.wholemsg === 'true';
+
+    node._inputNodes = []; // collection of nodes that want to receive events
+    node._clients = {};
+    // match absolute url
+    node.isServer = false;
+    node.closing = false;
+    node.working = false;
+
+    node.setMaxListeners(100);
+
+    node.pinger = setInterval(function() {
+      //only ping if connected and working
+      if (node.working) {
+        node.ping();
+      }
+    }, 5000);
+
+    function startconn() {
+      // Connect to remote endpoint
+      //should not start connection if no server or key
+      node.working = false;
+      var socket = new ws(node.path);
+      //socket.binaryType = 'arraybuffer'; //probably does not work
+      node.server = socket; // keep for closing
+      handleConnection(socket);
     }
 
-    RED.nodes.registerType("blynk-api-client", BlynkClientNode);
+    function handleConnection(/*socket*/ socket) {
+      var id = (1 + Math.random() * 4294967295).toString(16);
+      socket.setMaxListeners(100);
+      socket.on('open', function() {
+        node.working = false;
+        node.login(node.key);
+        node.emit('opened', '');
+      });
 
-    BlynkClientNode.prototype.registerInputNode = function(/*Node*/handler) {
-        this._inputNodes.push(handler);
-    }
-
-    BlynkClientNode.prototype.removeInputNode = function(/*Node*/handler) {
-        this._inputNodes.forEach(function(node, i, inputNodes) {
-            if (node === handler) {
-                inputNodes.splice(i, 1);
-            }
-        });
-    }
-    
-    BlynkClientNode.prototype.login = function(token) {
-    	//send(this.server, 'login ' + token);
-    	this.server.send(encodeCommand(MsgType.LOGIN, 1, token));
-   	}    
-
-    BlynkClientNode.prototype.ping = function() {
-    	//send(this.server, 'login ' + token);
-    	this.server.send(encodeCommand(MsgType.PING, 1, ''));
-   	}    
-	
-    BlynkClientNode.prototype.virtualWrite = function(node, val) {
-        var server = this.server;
-	    var pinType = node.pin_type;
-        var pin = node.pin;
-	    var typeConnect = node.type_connect;
-        //send(this.server, 'login ' + token);
-        var values;
-        switch (pinType) {
-            case 'digital': // Digital Pin
-                values = ['dw', pin, val];
-                break;
-            case 'analog': // Analog Pin
-                values = ['aw', pin, val];
-                break;
-            default: // Virtual Pin
-                values = ['vw', pin, val];
-                break;
+      socket.on('close', function() {
+        node.emit('closed');
+        node.working = false;
+        if (!node.closing) {
+          node.tout = setTimeout(function() {
+            startconn();
+          }, 5000); // try to reconnect every 5 secs... bit fast ?
         }
-
-    	//var values = ['vw', pin, val];
-		var data = values.join('\0');
-        if(typeConnect=='api') {
-            //var url = require('url');
-            var uri = this.api;
-            switch (pinType) {
-                case 'digital': // Digital Pin
-                    //pin = 'D'+pin;
-                    uri = uri + this.key+'/update/D'+pin;
-                    break;
-                case 'analog': // Analog Pin
-                    //pin = 'A'+pin;
-                    uri = uri + this.key+'/update/A'+pin;
-                    break;
-                default: // Virtual Pin
-                    //pin = 'V'+pin;
-                    uri = uri + this.key+'/update/V'+pin;
-                    break;
-            }
-            //uri = uri + this.key+'/update/'+pin;//+'?value='+val;
-            var request = require('request');
-            request({
-                method: 'PUT',
-                uri: uri,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: '["'+val+'"]'
-            }, function (error, response, body) {
-                if(error) {
-                    server.send(encodeCommand(MsgType.HARDWARE, 1, data));
-                    return;
-                }
-            });
+      });
+      socket.on('message', function(data, flags) {
+        //should check if login message OK, then set to working state
+        var cmd = decodeCommand(data);
+        //first ok is a valid login
+        if (
+          !node.working &&
+          cmd.type == MsgType.RESPONSE &&
+          cmd.status == MsgStatus.OK
+        ) {
+          // console.log('valid login, start everything');
+          node.working = true;
+          node.emit('connected', '');
+          //start ping
         } else {
-            this.server.send(encodeCommand(MsgType.HARDWARE, 1, data));
+          //should really just send command
+          //node.handleEvent(id, socket, 'message', data, flags);
+          switch (cmd.type) {
+            //MsgType.LOGIN
+            case MsgType.RESPONSE:
+              //response, ignoring
+              break;
+            case MsgType.HARDWARE:
+              switch (cmd.operation) {
+                //input nodes
+                case 'dw':
+                case 'aw':
+                case 'vw':
+                  node.handleWriteEvent(cmd);
+                  break;
+                case 'dr':
+                case 'ar':
+                case 'vr':
+                  node.handleReadEvent(cmd);
+                  break;
+                case 'pm':
+                  /**
+                  {
+                    type: 20,
+                    typeString: 'HARDWARE',
+                    msgId: 1,
+                    len: 39,
+                    body: 'pm\u00000\u0000out\u00001\u0000out\u00002\u0000out\u00003\u0000out\u00004\u0000out\u000023\u0000out',
+                    operation: 'pm',
+                    pin: '0',
+                    value: 'out',
+                    array: ['out', '1', 'out', '2', 'out', '3', 'out', '4', 'out', '23', 'out']
+                  }
+                  */
+                  break;
+                default:
+                  console.log('Unhandled operation', cmd);
+              }
+              break;
+            default:
+              console.log('Unhandled response', cmd);
+          }
         }
-   	}    
-
-    BlynkClientNode.prototype.sendEmail = function(to, subject, message) {
-    	//send(this.server, 'login ' + token);
-    	//[to, topic, message]
-    	var values = [to, subject, message];
-		var data = values.join('\0');	
-    	this.server.send(encodeCommand(MsgType.EMAIL, null, data));
-   	}    
-	
-   
-    BlynkClientNode.prototype.handleWriteEvent = function(command) {
-        for (var i = 0; i < this._inputNodes.length; i++) {
-	        if(this._inputNodes[i].nodeType == 'write' && (this._inputNodes[i].pin_all || this._inputNodes[i].pin == command.pin)) {
-	          	var msg;
-                
-		        msg = {
-		            payload: command.value,
-		            pin: command.pin
-                };
-                
-				switch (command.operation) {
-                    case 'dw':
-                        msg.pin_type = 'digital';
-                        break;
-                    case 'vw':
-                        msg.pin_type = 'virtual';
-                        break;
-                    case 'aw':
-                        msg.pin_type = 'analog';
-                        break;
-                
-                    default:
-                        console.error('handleWriteEvent command.operation not handle:', command.operation);
-                        break;
-                }
-				if(command.array) {
-					msg.arrayOfValues = command.array;
-				}
-	            this._inputNodes[i].send(msg);
-	        }
+      });
+      socket.on('error', function(err) {
+        node.emit('erro');
+        node.working = false;
+        if (!node.closing) {
+          node.tout = setTimeout(function() {
+            startconn();
+          }, 5000); // try to reconnect every 5 secs... bit fast ?
         }
-	}    
-	
-	BlynkClientNode.prototype.handleReadEvent = function(command) {
-       //msg._session = {type:"websocket", id:id};
-        
-        for (var i = 0; i < this._inputNodes.length; i++) {
-	        if(this._inputNodes[i].nodeType == 'read' && (this._inputNodes[i].pin_all || this._inputNodes[i].pin == command.pin)) {
-	          	var msg;
+      });
+    }
 
-		        msg = {
-		            payload: /* this._inputNodes[i].pin ? this._inputNodes[i].pin : */ command.pin
-                };
-                
-                switch (command.operation) {
-                    case 'dr':
-                        msg.pin_type = 'digital';
-                        break;
-                    case 'vr':
-                        msg.pin_type = 'virtual';
-                        break;
-                    case 'ar':
-                        msg.pin_type = 'analog';
-                        break;
-                
-                    default:
-                        console.error('handleReadEvent command.operation not handle:', command.operation);
-                        break;
-                }
+    node.closing = false;
+    startconn(); // start outbound connection
 
-	            this._inputNodes[i].send(msg);
-	        }
+    node.on('close', function() {
+      // Workaround https://github.com/einaros/ws/pull/253
+      // Remove listeners from RED.server
+
+      node.closing = true;
+      node.working = false;
+      node.server.close();
+      if (node.tout) {
+        clearTimeout(node.tout);
+      }
+    });
+  }
+
+  RED.nodes.registerType('blynk-api-client', BlynkClientNode);
+
+  BlynkClientNode.prototype.registerInputNode = function(/*Node*/ handler) {
+    this._inputNodes.push(handler);
+  };
+
+  BlynkClientNode.prototype.removeInputNode = function(/*Node*/ handler) {
+    this._inputNodes.forEach(function(node, i, inputNodes) {
+      if (node === handler) {
+        inputNodes.splice(i, 1);
+      }
+    });
+  };
+
+  BlynkClientNode.prototype.login = function(token) {
+    this.server.send(encodeCommand(MsgType.LOGIN, 1, token));
+  };
+
+  BlynkClientNode.prototype.ping = function() {
+    this.server.send(encodeCommand(MsgType.PING, 1, ''));
+  };
+
+  BlynkClientNode.prototype.virtualWrite = function(node, val) {
+    var server = this.server;
+    var pinType = node.pin_type;
+    var pin = node.pin;
+    var typeConnect = node.type_connect;
+    var values;
+    switch (pinType) {
+      case 'D': // Digital Pin
+        values = ['dw', pin, val];
+        break;
+      case 'A': // Analog Pin
+        values = ['aw', pin, val];
+        break;
+      default:
+        // Virtual Pin
+        values = ['vw', pin, val];
+        break;
+    }
+
+    var data = values.join('\0');
+    if (typeConnect == 'api') {
+      var uri = this.api;
+      uri = uri + this.key + '/update/' + pinType + pin;
+      request(
+        {
+          method: 'PUT',
+          uri: uri,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: '["' + val + '"]'
+        },
+        function(error, response, body) {
+          if (error) {
+            server.send(encodeCommand(MsgType.HARDWARE, 1, data));
+            return;
+          }
         }
-	}
+      );
+    } else {
+      this.server.send(encodeCommand(MsgType.HARDWARE, 1, data));
+    }
+  };
 
-    BlynkClientNode.prototype.handleEvent = function(command) {
-	    var msg;
+  BlynkClientNode.prototype.pinRead = function(node, val) {
+    var server = this.server;
+    var pinType = node.pin_type;
+    var pin = node.pin;
+    var typeConnect = node.type_connect;
+    var values;
+    var msg = {pin: pinType + pin};
+
+    switch (pinType) {
+      case 'D':
+        values = ['dr', pin];
+        break;
+      case 'A':
+        values = ['ar', pin];
+        break;
+      default:
+        // Virtual Pin
+        values = ['vr', pin];
+        break;
+    }
+    var data = values.join('\0');
+
+    if (typeConnect == 'api') {
+      var uri = this.api;
+      uri = uri + this.key + '/get/' + pinType + pin;
+
+      request(uri, function(error, response, body) {
+          if (error) {
+            // switch to socket
+            return;
+          }
+          var data = JSON.parse(body);
+          if(data && data.length) {
+            msg.payload = data[0];
+            msg.timestamp = +new Date;
+            node.send(msg);
+          } else {
+            node.error(body);
+          }
+      });
+    } else {
+      // TODO: read pin value via socket
+      // this.server.send(encodeCommand(MsgType.HARDWARE, 1, data));
+      node.error("TODO: read pin value via socket");
+    }
+  };
+
+  BlynkClientNode.prototype.sendEmail = function(to, subject, message) {
+    var values = [to, subject, message];
+    var data = values.join('\0');
+    this.server.send(encodeCommand(MsgType.EMAIL, null, data));
+  };
+
+  BlynkClientNode.prototype.handleWriteEvent = function(command) {
+    for (var i = 0; i < this._inputNodes.length; i++) {
+      if (
+        this._inputNodes[i].nodeType == 'write' &&
+        (this._inputNodes[i].pin_all || this._inputNodes[i].pin == command.pin)
+      ) {
+        var msg;
 
         msg = {
-            payload:0
+          payload: command.value,
+          pin: command.pin
         };
 
-        //msg._session = {type:"websocket", id:id};
-        
-        for (var i = 0; i < this._inputNodes.length; i++) {
-	        if(this._inputNodes[i].nodeType == cmd.action) {
-	            this._inputNodes[i].send(msg);
-	        }
+        switch (command.operation) {
+          case 'dw':
+            msg.pin_type = 'D';
+            break;
+          case 'vw':
+            msg.pin_type = 'V';
+            break;
+          case 'aw':
+            msg.pin_type = 'A';
+            break;
+
+          default:
+            console.error(
+              'handleWriteEvent command.operation not handle:',
+              command.operation
+            );
+            break;
         }
-        
-		/*if (data instanceof Buffer) {
+        if (command.array) {
+          msg.arrayOfValues = command.array;
+        }
+        this._inputNodes[i].send(msg);
+      }
+    }
+  };
+
+  BlynkClientNode.prototype.handleReadEvent = function(command) {
+    //msg._session = {type:"websocket", id:id};
+
+    for (var i = 0; i < this._inputNodes.length; i++) {
+      if (
+        this._inputNodes[i].nodeType == 'read' &&
+        (this._inputNodes[i].pin_all || this._inputNodes[i].pin == command.pin)
+      ) {
+        var msg;
+
+        msg = {
+          payload:
+            /* this._inputNodes[i].pin ? this._inputNodes[i].pin : */ command.pin
+        };
+
+        switch (command.operation) {
+          case 'dr':
+            msg.pin_type = 'D';
+            break;
+          case 'vr':
+            msg.pin_type = 'V';
+            break;
+          case 'ar':
+            msg.pin_type = 'A';
+            break;
+
+          default:
+            console.error(
+              'handleReadEvent command.operation not handle:',
+              command.operation
+            );
+            break;
+        }
+
+        this._inputNodes[i].send(msg);
+      }
+    }
+  };
+
+  BlynkClientNode.prototype.handleEvent = function(command) {
+    var msg;
+
+    msg = {
+      payload: 0
+    };
+
+    //msg._session = {type:"websocket", id:id};
+
+    for (var i = 0; i < this._inputNodes.length; i++) {
+      if (this._inputNodes[i].nodeType == cmd.action) {
+        this._inputNodes[i].send(msg);
+      }
+    }
+
+    /*if (data instanceof Buffer) {
             console.log(">>>", data);
             console.log("Receive : " +  messageToDebugString(data) + "\r\n");
         } else {
@@ -494,8 +547,8 @@ module.exports = function(RED) {
         for (var i = 0; i < this._inputNodes.length; i++) {
             this._inputNodes[i].send(msg);
         }*/
-    }
-/*
+  };
+  /*
     WebSocketListenerNode.prototype.broadcast = function(data) {
         try {
             this.server.send(data);
@@ -505,7 +558,7 @@ module.exports = function(RED) {
         }
     }
 */
-/*
+  /*
     WebSocketListenerNode.prototype.reply = function(id,data) {
         var session = this._clients[id];
         if (session) {
@@ -517,88 +570,108 @@ module.exports = function(RED) {
         }
     }
 */
-    function BlynkInReadNode(n) {
-        RED.nodes.createNode(this, n);
-        this.server = (n.client)?n.client:n.server;
-        var node = this;
-        this.serverConfig = RED.nodes.getNode(this.server);
-        
-		this.nodeType = 'read';
-        this.pin = n.pin;
-        this.pin_type = n.pin_type;
-        this.pin_all = n.pin_all;
-        
-        if (this.serverConfig) {
-            this.serverConfig.registerInputNode(this);
-            // TODO: nls
-            this.serverConfig.on('opened', function(n) { node.status({fill:"yellow",shape:"dot",text:"connecting "+n}); });
-            this.serverConfig.on('connected', function(n) { node.status({fill:"green",shape:"dot",text:"connected "+n}); });
-            this.serverConfig.on('erro', function() { node.status({fill:"red",shape:"ring",text:"error"}); });
-            this.serverConfig.on('closed', function() { node.status({fill:"red",shape:"ring",text:"disconnected"}); });
-        } else {
-            this.error(RED._("websocket.errors.missing-conf"));
-        }
+  function BlynkInReadNode(n) {
+    RED.nodes.createNode(this, n);
+    this.server = n.client ? n.client : n.server;
+    var node = this;
+    this.serverConfig = RED.nodes.getNode(this.server);
 
-        this.on('close', function() {
-            node.serverConfig.removeInputNode(node);
-        });
+    this.nodeType = 'read';
+    this.pin = n.pin;
+    this.pin_type = n.pin_type;
+    this.pin_all = n.pin_all;
 
+    if (this.serverConfig) {
+      this.serverConfig.registerInputNode(this);
+      // TODO: nls
+      this.serverConfig.on('opened', function(n) {
+        node.status({ fill: 'yellow', shape: 'dot', text: 'connecting ' + n });
+      });
+      this.serverConfig.on('connected', function(n) {
+        node.status({ fill: 'green', shape: 'dot', text: 'connected ' + n });
+      });
+      this.serverConfig.on('erro', function() {
+        node.status({ fill: 'red', shape: 'ring', text: 'error' });
+      });
+      this.serverConfig.on('closed', function() {
+        node.status({ fill: 'red', shape: 'ring', text: 'disconnected' });
+      });
+    } else {
+      this.error(RED._('websocket.errors.missing-conf'));
     }
-    RED.nodes.registerType("blynk-api-in-read", BlynkInReadNode);
 
+    this.on('close', function() {
+      node.serverConfig.removeInputNode(node);
+    });
+  }
+  RED.nodes.registerType('blynk-api-in-read', BlynkInReadNode);
 
-    function BlynkInWriteNode(n) {
-        RED.nodes.createNode(this, n);
-        this.server = (n.client)?n.client:n.server;
-        var node = this;
-        this.serverConfig = RED.nodes.getNode(this.server);
-        
-		this.nodeType = 'write';
-        this.pin = n.pin;
-        this.pin_type = n.pin_type;
-        this.pin_all = n.pin_all;
-        
-        if (this.serverConfig) {
-            this.serverConfig.registerInputNode(this);
-            // TODO: nls
-            this.serverConfig.on('opened', function(n) { node.status({fill:"yellow",shape:"dot",text:"connecting "+n}); });
-            this.serverConfig.on('connected', function(n) { node.status({fill:"green",shape:"dot",text:"connected "+n}); });
-            this.serverConfig.on('erro', function() { node.status({fill:"red",shape:"ring",text:"error"}); });
-            this.serverConfig.on('closed', function() { node.status({fill:"red",shape:"ring",text:"disconnected"}); });
-        } else {
-            this.error(RED._("websocket.errors.missing-conf"));
-        }
+  function BlynkInWriteNode(n) {
+    RED.nodes.createNode(this, n);
+    this.server = n.client ? n.client : n.server;
+    var node = this;
+    this.serverConfig = RED.nodes.getNode(this.server);
 
-        this.on('close', function() {
-            node.serverConfig.removeInputNode(node);
-        });
+    this.nodeType = 'write';
+    this.pin = n.pin;
+    this.pin_type = n.pin_type;
+    this.pin_all = n.pin_all;
 
+    if (this.serverConfig) {
+      this.serverConfig.registerInputNode(this);
+      // TODO: nls
+      this.serverConfig.on('opened', function(n) {
+        node.status({ fill: 'yellow', shape: 'dot', text: 'connecting ' + n });
+      });
+      this.serverConfig.on('connected', function(n) {
+        node.status({ fill: 'green', shape: 'dot', text: 'connected ' + n });
+      });
+      this.serverConfig.on('erro', function() {
+        node.status({ fill: 'red', shape: 'ring', text: 'error' });
+      });
+      this.serverConfig.on('closed', function() {
+        node.status({ fill: 'red', shape: 'ring', text: 'disconnected' });
+      });
+    } else {
+      this.error(RED._('websocket.errors.missing-conf'));
     }
-    RED.nodes.registerType("blynk-api-in-write", BlynkInWriteNode);
 
-    function BlynkOutWriteNode(n) {
-        RED.nodes.createNode(this,n);
-        var node = this;
-        this.server = n.client;
-        this.pin = n.pin;
-        this.pin_type = n.pin_type;
-        this.type_connect = n.type_connect;
-        
-        this.serverConfig = RED.nodes.getNode(this.server);
-        if (!this.serverConfig) {
-            this.error(RED._("websocket.errors.missing-conf"));
-        }
-        else {
-            // TODO: nls
-            this.serverConfig.on('opened', function(n) { node.status({fill:"yellow",shape:"dot",text:"connecting "+n}); });
-            this.serverConfig.on('connected', function(n) { node.status({fill:"green",shape:"dot",text:"connected "+n}); });
-            this.serverConfig.on('erro', function() { node.status({fill:"red",shape:"ring",text:"error"}); });
-            this.serverConfig.on('closed', function() { node.status({fill:"red",shape:"ring",text:"disconnected"}); });
-        }
-        this.on("input", function(msg) {
-            var payload;
-            //console.log('writing');
-            /*if (this.serverConfig.wholemsg) {
+    this.on('close', function() {
+      node.serverConfig.removeInputNode(node);
+    });
+  }
+  RED.nodes.registerType('blynk-api-in-write', BlynkInWriteNode);
+
+  function BlynkOutWriteNode(n) {
+    RED.nodes.createNode(this, n);
+    var node = this;
+    this.server = n.client;
+    this.pin = n.pin;
+    this.pin_type = n.pin_type;
+    this.type_connect = n.type_connect;
+
+    this.serverConfig = RED.nodes.getNode(this.server);
+    if (!this.serverConfig) {
+      this.error(RED._('websocket.errors.missing-conf'));
+    } else {
+      // TODO: nls
+      this.serverConfig.on('opened', function(n) {
+        node.status({ fill: 'yellow', shape: 'dot', text: 'connecting ' + n });
+      });
+      this.serverConfig.on('connected', function(n) {
+        node.status({ fill: 'green', shape: 'dot', text: 'connected ' + n });
+      });
+      this.serverConfig.on('erro', function() {
+        node.status({ fill: 'red', shape: 'ring', text: 'error' });
+      });
+      this.serverConfig.on('closed', function() {
+        node.status({ fill: 'red', shape: 'ring', text: 'disconnected' });
+      });
+    }
+    this.on('input', function(msg) {
+      var payload;
+      //console.log('writing');
+      /*if (this.serverConfig.wholemsg) {
                 delete msg._session;
                 payload = JSON.stringify(msg);
             } else if (msg.hasOwnProperty("payload")) {
@@ -620,47 +693,91 @@ module.exports = function(RED) {
                     });
                 }
             }*/
-            
-            if (msg.hasOwnProperty("payload")) {
-                if (!Buffer.isBuffer(msg.payload)) { // if it's not a buffer make sure it's a string.
-                    payload = RED.util.ensureString(msg.payload);
-                }
-                else {
-                    payload = msg.payload;
-                }
-            }
-            if (payload) {
-	            //todo: check payload and validate
-	            //console.log('write');
-	            node.serverConfig.virtualWrite(node, payload);
-            }
 
-            
-        });
+      if (msg.hasOwnProperty('payload')) {
+        if (!Buffer.isBuffer(msg.payload)) {
+          // if it's not a buffer make sure it's a string.
+          payload = RED.util.ensureString(msg.payload);
+        } else {
+          payload = msg.payload;
+        }
+      }
+      if (payload) {
+        //todo: check payload and validate
+        //console.log('write');
+        node.serverConfig.virtualWrite(node, payload);
+      }
+    });
+  }
+  RED.nodes.registerType('blynk-api-out-write', BlynkOutWriteNode);
+  RED.nodes.registerType('blynk-api-out-read', function(n) {
+    RED.nodes.createNode(this, n);
+    var node = this;
+    this.server = n.client;
+    this.pin_type = n.pin_type;
+    this.pin = n.pin;
+    this.type_connect = n.type_connect;
+
+    this.serverConfig = RED.nodes.getNode(this.server);
+    if (!this.serverConfig) {
+      this.error(RED._('websocket.errors.missing-conf'));
+    } else {
+      // TODO: nls
+      this.serverConfig.on('opened', function(n) {
+        node.status({ fill: 'yellow', shape: 'dot', text: 'connecting ' + n });
+      });
+      this.serverConfig.on('connected', function(n) {
+        node.status({ fill: 'green', shape: 'dot', text: 'connected ' + n });
+      });
+      this.serverConfig.on('erro', function() {
+        node.status({ fill: 'red', shape: 'ring', text: 'error' });
+      });
+      this.serverConfig.on('closed', function() {
+        node.status({ fill: 'red', shape: 'ring', text: 'disconnected' });
+      });
     }
-    RED.nodes.registerType("blynk-api-out-write", BlynkOutWriteNode);
+    this.on('input', function(msg) {
+      var payload;
 
-    function BlynkOutEmailNode(n) {
-        RED.nodes.createNode(this,n);
-        var node = this;
-        this.server = n.client;
-        this.email = n.email;
-        
-        this.serverConfig = RED.nodes.getNode(this.server);
-        if (!this.serverConfig) {
-            this.error(RED._("websocket.errors.missing-conf"));
+      if (msg.hasOwnProperty('payload')) {
+        if (!Buffer.isBuffer(msg.payload)) {
+          // if it's not a buffer make sure it's a string.
+          payload = RED.util.ensureString(msg.payload);
+        } else {
+          payload = msg.payload;
         }
-        else {
-            // TODO: nls
-            this.serverConfig.on('opened', function(n) { node.status({fill:"yellow",shape:"dot",text:"connecting "+n}); });
-            this.serverConfig.on('connected', function(n) { node.status({fill:"green",shape:"dot",text:"connected "+n}); });
-            this.serverConfig.on('erro', function() { node.status({fill:"red",shape:"ring",text:"error"}); });
-            this.serverConfig.on('closed', function() { node.status({fill:"red",shape:"ring",text:"disconnected"}); });
-        }
-        this.on("input", function(msg) {
-            var payload;
-            //console.log('writing');
-            /*if (this.serverConfig.wholemsg) {
+      }
+      node.serverConfig.pinRead(node, payload);
+    });
+  });
+
+  function BlynkOutEmailNode(n) {
+    RED.nodes.createNode(this, n);
+    var node = this;
+    this.server = n.client;
+    this.email = n.email;
+
+    this.serverConfig = RED.nodes.getNode(this.server);
+    if (!this.serverConfig) {
+      this.error(RED._('websocket.errors.missing-conf'));
+    } else {
+      // TODO: nls
+      this.serverConfig.on('opened', function(n) {
+        node.status({ fill: 'yellow', shape: 'dot', text: 'connecting ' + n });
+      });
+      this.serverConfig.on('connected', function(n) {
+        node.status({ fill: 'green', shape: 'dot', text: 'connected ' + n });
+      });
+      this.serverConfig.on('erro', function() {
+        node.status({ fill: 'red', shape: 'ring', text: 'error' });
+      });
+      this.serverConfig.on('closed', function() {
+        node.status({ fill: 'red', shape: 'ring', text: 'disconnected' });
+      });
+    }
+    this.on('input', function(msg) {
+      var payload;
+      /*if (this.serverConfig.wholemsg) {
                 delete msg._session;
                 payload = JSON.stringify(msg);
             } else if (msg.hasOwnProperty("payload")) {
@@ -682,27 +799,25 @@ module.exports = function(RED) {
                     });
                 }
             }*/
-            
-            if (msg.hasOwnProperty("payload")) {
-                if (!Buffer.isBuffer(msg.payload)) { // if it's not a buffer make sure it's a string.
-                    payload = RED.util.ensureString(msg.payload);
-                }
-                else {
-                    payload = msg.payload;
-                }
-            }
-            if (payload) {
-	            //todo: check payload and validate
-	            //console.log('write');
-	            var subject = payload;
-	            if(msg.topic) {
-		            subject = msg.topic;
-	            }
-	            node.serverConfig.sendEmail(node.email, subject, payload);
-            }
 
-            
-        });
-    }
-    RED.nodes.registerType("blynk-api-out-email", BlynkOutEmailNode);
-}
+      if (msg.hasOwnProperty('payload')) {
+        if (!Buffer.isBuffer(msg.payload)) {
+          // if it's not a buffer make sure it's a string.
+          payload = RED.util.ensureString(msg.payload);
+        } else {
+          payload = msg.payload;
+        }
+      }
+      if (payload) {
+        //todo: check payload and validate
+        //console.log('write');
+        var subject = payload;
+        if (msg.topic) {
+          subject = msg.topic;
+        }
+        node.serverConfig.sendEmail(node.email, subject, payload);
+      }
+    });
+  }
+  RED.nodes.registerType('blynk-api-out-email', BlynkOutEmailNode);
+};

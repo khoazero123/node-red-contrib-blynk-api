@@ -19,6 +19,22 @@
 <script type="text/javascript">
 
 (function() {
+    function getPinType(type) {
+        switch (type) {
+            case 'A':
+                type = 'Analog';
+                break;
+            case 'D':
+                type = 'Digital';
+                break;
+            case 'V':
+                type = 'Virtual';
+                break;
+            default:
+                break;
+        }
+        return type;
+    }
     function capitalizeFirstLetter(string) {
         return string.charAt(0).toUpperCase() + string.slice(1);
     }
@@ -55,19 +71,19 @@
 
     $(document).on('change', 'select#node-input-type_connect', function() {
         var typeConnect = this.value;
-        // if(typeConnect == 'ws' && $("#node-input-pin_type").val() != 'virtual') {}
+        // if(typeConnect == 'ws' && $("#node-input-pin_type").val() != 'V') {}
         if(typeConnect == 'ws') {
-            //$('select#node-input-pin_type option[value="digital"]').attr('disabled','disabled');
-            $('select#node-input-pin_type option[value!="virtual"]').attr('disabled','disabled');
-            $("#node-input-pin_type").val('virtual');
+            //$('select#node-input-pin_type option[value="D"]').attr('disabled','disabled');
+            $('select#node-input-pin_type option[value!="V"]').attr('disabled','disabled');
+            $("#node-input-pin_type").val('V');
         } else {
-            $('select#node-input-pin_type option[value!="virtual"]').removeAttr('disabled');
+            $('select#node-input-pin_type option[value!="V"]').removeAttr('disabled');
         }
     });
 
     $(document).on('change', 'select#node-input-pin_type', function() {
         var pinType = this.value;
-        if(pinType != 'virtual' && $("#node-input-type_connect").val() != 'api') {
+        if(pinType != 'V' && $("#node-input-type_connect").val() != 'api') {
             // alert('Digital pin only send via API');
             $("#node-input-type_connect").val('api');
         }
@@ -78,36 +94,43 @@
         _type = '';
         if(this.type == 'blynk-api-in-read') {
 	        _type = 'Read Event';
-        } 
+        }
         if(this.type == 'blynk-api-in-write') {
 	        _type = 'Write Event';
-        } 
+        }
         if(this.type == 'blynk-api-out-write') {
 	        _type = 'Write';
-        } 
+        }
+        if(this.type == 'blynk-api-out-read') {
+	        _type = 'Read';
+        }
 
         if(this.pin) {
-	        _pin = capitalizeFirstLetter(this.pin_type) + ' pin ' + this.pin + ' - ' +  _type;
+            if(this.pin_type) {
+                _pin = this.pin_type + this.pin + ' - ' +  _type;
+            } else {
+                _pin = this.pin + ' - ' +  _type;
+            }
         }
         if(this.pin_all) {
             _pin = 'All Pins' + ' - ' +  _type;
         }
         if(this.type == "blynk-api-out-email") {
-	        return this.name||this.email||'email';
+	        return this.name || this.email || 'email';
         }
         if(this.type == "blynk-api-client") {
-	        return this.name||this.key||'n/a';
+	        return this.name || this.key || 'n/a';
         }
-        return this.name||_pin;
+        console.log(this.name, _pin);
+        return this.name || _pin;
     }
        
     function ws_validateclient() {
-/*        if($("#node-input-mode").val() === 'client' || (this.client && !this.server)) {
+        /* if($("#node-input-mode").val() === 'client' || (this.client && !this.server)) {
             return RED.nodes.node(this.client) != null;
-        }
-        else {
+        } else {
             return true;
-        }*/
+        } */
         
         return true;
     }
@@ -132,7 +155,7 @@
         defaults: {
             name: {value: ''},
             pin: {value: 0},
-            pin_type: {value: 'virtual'},
+            pin_type: {value: 'V'},
             pin_all: {value: 0},
             client: {type:"blynk-api-client", validate: ws_validateclient}
         },
@@ -141,7 +164,7 @@
         outputs:1,
         icon: "white-globe.png",
         labelStyle: function() {
-            return this.name?"node_label_italic":"";
+            return this.name ? "node_label_italic" : "";
         },
         label: ws_label,
         oneditsave: api_oneditsave,
@@ -154,9 +177,9 @@
         defaults: {
             name: {value: ''},
             pin: {value: 0},
-            pin_type: {value: 'virtual'},
+            pin_type: {value: 'V'},
             pin_all: {value: 0},
-            client: {type:"blynk-api-client", validate: ws_validateclient}
+            client: {type: "blynk-api-client", validate: ws_validateclient}
         },
         color:"#1BC17C",
         inputs:0,
@@ -176,7 +199,7 @@
         defaults: {
             name: {value: ''},
             type_connect: {value: 'ws'}, // ws - api
-            pin_type: {value: 'virtual'}, // virtual - digital - analog
+            pin_type: {value: 'D'}, // Virtual - Digital - Analog
             pin: {value: 0},
             client: {type: "blynk-api-client", validate: ws_validateclient}
         },
@@ -186,12 +209,36 @@
         icon: "white-globe.png",
         align: "right",
         labelStyle: function() {
-            return this.name?"node_label_italic":"";
+            return this.name ? "node_label_italic" : "";
         },
         label: ws_label,
         oneditsave: api_oneditsave,
         oneditprepare: ws_oneditprepare
     });
+
+    RED.nodes.registerType('blynk-api-out-read',{
+        category: 'Blynk API',
+        paletteLabel: 'read',
+        defaults: {
+            name: {value: ''},
+            type_connect: {value: 'api'}, // ws - api
+            pin_type: {value: 'D', required: true},
+            pin: {value: '', required: true},
+            client: {type: "blynk-api-client", validate: ws_validateclient}
+        },
+        color:"#1BC17C",
+        inputs:1,
+        outputs:1,
+        icon: "white-globe.png",
+        align: "right",
+        labelStyle: function() {
+            return this.name ? "node_label_italic" : "";
+        },
+        label: ws_label,
+        oneditsave: api_oneditsave,
+        oneditprepare: ws_oneditprepare
+    });
+    
     
     RED.nodes.registerType('blynk-api-out-email',{
         category: 'Blynk API',
@@ -232,8 +279,8 @@
     <div class="form-row">
         <label for="node-input-pin"><i class="fa fa-tag"></i> <span>Pin</span></label>
         <select id="node-input-pin_type" style="width:25%">
-            <option value="virtual">Virtual Pin</option>
-            <option value="digital">Digital Pin</option>
+            <option value="V">Virtual Pin</option>
+            <option value="D">Digital Pin</option>
         </select>
         <input type="number" id="node-input-pin"  min="0" max="128" placeholder="pin" style="width:45%">
    	</div>
@@ -261,8 +308,8 @@
     <div class="form-row">
         <label for="node-input-pin"><i class="fa fa-tag"></i> <span>Pin</span></label>
         <select id="node-input-pin_type" style="width:25%">
-            <option value="virtual">Virtual Pin</option>
-            <option value="digital">Digital Pin</option>
+            <option value="V">Virtual Pin</option>
+            <option value="D">Digital Pin</option>
         </select>
         <input type="number" id="node-input-pin"  min="0" max="128" placeholder="pin" style="width:45%">
    	</div>
@@ -295,9 +342,9 @@
     <div class="form-row">
         <label for="node-input-pin"><i class="fa fa-tag"></i> <span>Pin</span></label>
         <select id="node-input-pin_type" style="width:25%">
-            <option value="virtual">Virtual Pin</option>
-            <option value="digital">Digital Pin</option>
-            <!-- <option value="analog">Analog Pin</option> -->
+            <option value="V">Virtual Pin</option>
+            <option value="D">Digital Pin</option>
+            <!-- <option value="A">Analog Pin</option> -->
         </select>
         <input type="number" id="node-input-pin"  min="0" max="128" placeholder="pin" style="width:45%">
    	</div>
@@ -308,10 +355,42 @@
 </script>
 
 <script type="text/x-red" data-help-name="blynk-api-out-write">
-    <p>Blynk write node.</p>
+    <p>Write pin value.</p>
     <p>This node will write the value in payload to the specified pin number.</p>.
 </script>
 
+<!-- Blynk out Node - Read -->
+<script type="text/x-red" data-template-name="blynk-api-out-read">
+    <div class="form-row" id="websocket-client-row">
+        <label for="node-input-client"><i class="fa fa-bookmark"></i> <span>Connection</span></label>
+        <input type="text" id="node-input-client">
+    </div>
+    <div class="form-row">
+        <label for="node-input-type_connect"><i class="fa fa-tag"></i> <span>Type connect</span></label>
+        <select id="node-input-type_connect" style="width:70%" disabled>
+            <option value="ws">Websocket</option>
+            <option value="api">API</option>
+        </select>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-pin"><i class="fa fa-tag"></i> <span>Pin</span></label>
+        <select id="node-input-pin_type" style="width:25%">
+            <option value="V">Virtual Pin</option>
+            <option value="D">Digital Pin</option>
+            <option value="A">Analog Pin</option>
+        </select>
+        <input type="number" id="node-input-pin" min="0" max="128" placeholder="pin" style="width:45%">
+   	</div>
+   	<div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> <span>Name</span></label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="blynk-api-out-read">
+    <p>Get pin value.</p>
+</script>
 
 <!-- Blynk out Node - Email -->
 <script type="text/x-red" data-template-name="blynk-api-out-email">
