@@ -2,14 +2,14 @@
   "author": {
     "name": "KhoaZero123",
     "email": "khoazero123@gmail.com",
-    "url": "http://megavn.net"
+    "url": "https://github.com/khoazero123/node-red-contrib-blynk-api"
   },
   "bugs": {
     "url": "https://github.com/khoazero123/node-red-contrib-blynk-api/issues"
   },
   "dependencies": {
     "buffer-dataview": "0.0.2",
-    "ws": "^1.0.1"
+    "ws": ">=3.3.1"
   },
   "description": "Node Red integration with Blynk App and Server through api",
   "homepage": "https://github.com/khoazero123/node-red-contrib-blynk-api",
@@ -17,8 +17,8 @@
     "node-red",
     "blynk",
     "iot",
-    "ws",
-    "api"
+    "blynk ws",
+    "blynk api"
   ],
   "license": "MIT",
   "main": "blynk-api.js",
@@ -35,5 +35,5 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "0.0.5"
+  "version": "0.0.6"
 }

@@ -57,13 +57,9 @@ module.exports = function(RED) {
 		            
 	            }
             }
-            //console.log(command);
         } else {
 	        command.status = dataview.getUint16(3);
         }
-        
-        //console.log(command);
-        
         return command;
     }
     
@@ -95,7 +91,6 @@ module.exports = function(RED) {
     */
     function encodeCommand(command, msgId, body) {
         var BLYNK_HEADER_SIZE = 5;
-        //console.log('encode', command, body);
         var bodyLength = (body ? body.length : 0);
         var bufArray = new Buffer(BLYNK_HEADER_SIZE + bodyLength);
         var dataview = new DataView(bufArray);
@@ -171,8 +166,6 @@ module.exports = function(RED) {
 	}
 	//END BLYNK STUFF
 
-
-
     // A node red node that sets up a local websocket server
     function BlynkClientNode(n) {
         // Create a RED node
@@ -214,7 +207,6 @@ module.exports = function(RED) {
             var id = (1+Math.random()*4294967295).toString(16);
             socket.setMaxListeners(100);
             socket.on('open',function() {
-	            console.log('open');
 	            node.working = false;
 	            //do login
 	            //send(node.server, 'login ' + node.key )
@@ -223,7 +215,6 @@ module.exports = function(RED) {
             });
             
             socket.on('close', function() {
-	            console.log('close');
                 node.emit('closed');
                 node.working = false;
                 if (!node.closing) {
@@ -235,7 +226,7 @@ module.exports = function(RED) {
 	            var cmd = decodeCommand(data);
 	            //first ok is a valid login
 	            if(!node.working && cmd.type == MsgType.RESPONSE && cmd.status == MsgStatus.OK) {
-		            console.log('valid login, start everything');
+		            // console.log('valid login, start everything');
 					node.working = true;
 					node.emit('connected','');
 		            //start ping
@@ -245,7 +236,6 @@ module.exports = function(RED) {
 	                switch(cmd.type) {
 		                //MsgType.LOGIN
 		                case MsgType.RESPONSE:
-		                	//console.log()
 		                	//response, ignoring
 		                	break;
 		                case MsgType.HARDWARE:
@@ -260,7 +250,22 @@ module.exports = function(RED) {
 			                	case 'ar':
 			                	case 'vr':
 			                		node.handleReadEvent(cmd);
-			                		break;
+                                    break;
+                                case 'pm':
+                                    /**
+                                    {
+                                        type: 20,
+                                        typeString: 'HARDWARE',
+                                        msgId: 1,
+                                        len: 39,
+                                        body: 'pm\u00000\u0000out\u00001\u0000out\u00002\u0000out\u00003\u0000out\u00004\u0000out\u000023\u0000out',
+                                        operation: 'pm',
+                                        pin: '0',
+                                        value: 'out',
+                                        array: ['out', '1', 'out', '2', 'out', '3', 'out', '4', 'out', '23', 'out']
+                                    }
+                                     */
+                                    break;
 			                	default:
 			                		console.log('Unhandled operation', cmd);
 		                	}
@@ -271,7 +276,6 @@ module.exports = function(RED) {
 	            }
             });
             socket.on('error', function(err) {
-	            console.log('error');
                 node.emit('erro');
                 node.working = false;
                 if (!node.closing) {
@@ -293,9 +297,6 @@ module.exports = function(RED) {
             node.server.close();
             if (node.tout) { clearTimeout(node.tout); }
         });
-        
-        
-        
     }
 
     RED.nodes.registerType("blynk-api-client", BlynkClientNode);
@@ -313,13 +314,11 @@ module.exports = function(RED) {
     }
     
     BlynkClientNode.prototype.login = function(token) {
-	    console.log('handle login', token);
     	//send(this.server, 'login ' + token);
     	this.server.send(encodeCommand(MsgType.LOGIN, 1, token));
    	}    
 
     BlynkClientNode.prototype.ping = function() {
-	    //console.log('ping');
     	//send(this.server, 'login ' + token);
     	this.server.send(encodeCommand(MsgType.PING, 1, ''));
    	}    
@@ -344,9 +343,7 @@ module.exports = function(RED) {
         }
 
     	//var values = ['vw', pin, val];
-		//console.log(values);
 		var data = values.join('\0');
-        //console.log(data);
         if(typeConnect=='api') {
             //var url = require('url');
             var uri = this.api;
@@ -365,7 +362,6 @@ module.exports = function(RED) {
                     break;
             }
             //uri = uri + this.key+'/update/'+pin;//+'?value='+val;
-            // console.log('API:', uri);
             var request = require('request');
             request({
                 method: 'PUT',
@@ -376,13 +372,9 @@ module.exports = function(RED) {
                 body: '["'+val+'"]'
             }, function (error, response, body) {
                 if(error) {
-                    console.error(error);
                     server.send(encodeCommand(MsgType.HARDWARE, 1, data));
                     return;
                 }
-                //console.log('Status:', response.statusCode);
-                //console.log('Headers:', JSON.stringify(response.headers));
-                //console.log('Response:', body);
             });
         } else {
             this.server.send(encodeCommand(MsgType.HARDWARE, 1, data));
@@ -390,20 +382,15 @@ module.exports = function(RED) {
    	}    
 
     BlynkClientNode.prototype.sendEmail = function(to, subject, message) {
-	    //console.log('ping');
     	//send(this.server, 'login ' + token);
     	//[to, topic, message]
     	var values = [to, subject, message];
-		//console.log(values);
-		var data = values.join('\0');
-		//console.log(data);		
+		var data = values.join('\0');	
     	this.server.send(encodeCommand(MsgType.EMAIL, null, data));
    	}    
 	
    
     BlynkClientNode.prototype.handleWriteEvent = function(command) {
-	    console.log('handle request write event', command);
-        
         for (var i = 0; i < this._inputNodes.length; i++) {
 	        if(this._inputNodes[i].nodeType == 'write' && (this._inputNodes[i].pin_all || this._inputNodes[i].pin == command.pin)) {
 	          	var msg;
@@ -425,11 +412,8 @@ module.exports = function(RED) {
                         break;
                 
                     default:
-                        console.error(command);
+                        console.error('handleWriteEvent command.operation not handle:', command.operation);
                         break;
-                }
-                if(!this._inputNodes[i].pin_all && this._inputNodes[i].pin_type != msg.pin_type) {
-                    continue;
                 }
 				if(command.array) {
 					msg.arrayOfValues = command.array;
@@ -440,7 +424,6 @@ module.exports = function(RED) {
 	}    
 	
 	BlynkClientNode.prototype.handleReadEvent = function(command) {
-	    console.log('handle request read event', command.pin);
        //msg._session = {type:"websocket", id:id};
         
         for (var i = 0; i < this._inputNodes.length; i++) {
@@ -463,21 +446,16 @@ module.exports = function(RED) {
                         break;
                 
                     default:
-                        console.error(command);
+                        console.error('handleReadEvent command.operation not handle:', command.operation);
                         break;
                 }
-                
-                if(!this._inputNodes[i].pin_all && this._inputNodes[i].pin_type != msg.pin_type) {
-                    continue;
-                }
+
 	            this._inputNodes[i].send(msg);
 	        }
         }
 	}
 
     BlynkClientNode.prototype.handleEvent = function(command) {
-	    console.log('handle event', command);
-	    
 	    var msg;
 
         msg = {
@@ -498,7 +476,6 @@ module.exports = function(RED) {
         } else {
             console.log("unexpected type : " + data + "\r\n");
         }
-
 
         var msg;
         if (this.wholemsg) {
@@ -550,7 +527,6 @@ module.exports = function(RED) {
         this.pin = n.pin;
         this.pin_type = n.pin_type;
         this.pin_all = n.pin_all;
-		console.log('new in read', this.pin);
         
         if (this.serverConfig) {
             this.serverConfig.registerInputNode(this);
@@ -581,7 +557,6 @@ module.exports = function(RED) {
         this.pin = n.pin;
         this.pin_type = n.pin_type;
         this.pin_all = n.pin_all;
-		console.log('new in write', this.pin);
         
         if (this.serverConfig) {
             this.serverConfig.registerInputNode(this);
@@ -730,6 +705,4 @@ module.exports = function(RED) {
         });
     }
     RED.nodes.registerType("blynk-api-out-email", BlynkOutEmailNode);
-
-
 }
