@@ -318,28 +318,36 @@ module.exports = function(RED) {
   BlynkClientNode.prototype.sendMessage = function (msg) {
     // Wait until the state of the socket is not ready and send the message when it is...
     var that = this;
-    this.waitForSocketConnection(this.server, function () {
+    this.waitForSocketConnection(function () {
       debug("message sent!!!");
       that.server.send(msg);
     });
   }
 
   // Make the function wait until the connection is made...
-  BlynkClientNode.prototype.waitForSocketConnection = function (socket, callback) {
+  BlynkClientNode.prototype.waitForSocketConnection = function (callback) {
     var that = this;
-    setTimeout(
-      function () {
-        if (socket.readyState === 1) {
-          debug("Connection is made")
-          if (callback != null) {
-            callback();
-          }
-        } else {
+    var socket = that.server;
+    if (socket.readyState === 1) {
+      debug("Connection is made")
+      if (callback != null) {
+        callback();
+      }
+      if (that.socketTimeout) {
+        clearTimeout(that.socketTimeout);
+      }
+    } else {
+      if (that.socketTimeout) {
+        clearTimeout(that.socketTimeout);
+        that.socketTimeout = null;
+      }
+      that.socketTimeout = setTimeout(
+        function () {
           debug("wait for connection...")
-          that.waitForSocketConnection(socket, callback);
-        }
-
-      }, 5); // wait 5 milisecond for the connection...
+          that.waitForSocketConnection(callback);
+        }, 5000); // wait 5 milisecond for the connection...
+    }
+    
   };
 
   BlynkClientNode.prototype.registerInputNode = function(/*Node*/ handler) {
