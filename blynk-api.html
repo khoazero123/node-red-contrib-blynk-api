@@ -18,251 +18,255 @@
 
 <script type="text/javascript">
 
-(function() {
+  (function () {
     function getPinType(type) {
-        switch (type) {
-            case 'A':
-                type = 'Analog';
-                break;
-            case 'D':
-                type = 'Digital';
-                break;
-            case 'V':
-                type = 'Virtual';
-                break;
-            default:
-                break;
-        }
-        return type;
+      switch (type) {
+        case 'A':
+          type = 'Analog';
+          break;
+        case 'D':
+          type = 'Digital';
+          break;
+        case 'V':
+          type = 'Virtual';
+          break;
+        default:
+          break;
+      }
+      return type;
     }
     function capitalizeFirstLetter(string) {
-        return string.charAt(0).toUpperCase() + string.slice(1);
+      return string.charAt(0).toUpperCase() + string.slice(1);
     }
     function ws_oneditprepare() {
-        /*if(this.client) {
-            $("#node-input-mode").val('client').change();
-        }*/
+      /*if(this.client) {
+          $("#node-input-mode").val('client').change();
+      }*/
     }
-    
+
     function api_oneditsave() {
-        
+
     }
     function preparePinIn() {
-        $("#node-input-pin_all").on("change",function() {
-            if ($(this).is(":checked")) {
-                $("#node-input-pin").parent().hide();
-            } else {
-                $("#node-input-pin").parent().show();
-            }
-        }).change();
+      $("#node-input-pin_all").on("change", function () {
+        if ($(this).is(":checked")) {
+          $("#node-input-pin").parent().hide();
+        } else {
+          $("#node-input-pin").parent().show();
+        }
+      }).change();
     }
-    
+
     function api_onConfigSave() {
-        var ws = $("#node-config-input-path").val();
-        var url = $("#node-config-input-api").val();
-        if(url) {
-            if (url.substr(-1) != '/') url += '/';
-            $("#node-config-input-api").val(url);
-        } else if(ws) {
-            url = ws.replace('/websockets', '/').replace('wss:', 'https:').replace('ws:', 'http:');
-            $("#node-config-input-api").val(url);
-        }
+      var ws = $("#node-config-input-path").val();
+      var url = $("#node-config-input-api").val();
+      if (url) {
+        if (url.substr(-1) != '/') url += '/';
+        $("#node-config-input-api").val(url);
+      } else if (ws) {
+        url = ws.replace('/websockets', '/').replace('wss:', 'https:').replace('ws:', 'http:');
+        $("#node-config-input-api").val(url);
+      }
     }
 
-    $(document).on('change', 'select#node-input-type_connect', function() {
-        var typeConnect = this.value;
-        // if(typeConnect == 'ws' && $("#node-input-pin_type").val() != 'V') {}
-        if(typeConnect == 'ws') {
-            //$('select#node-input-pin_type option[value="D"]').attr('disabled','disabled');
-            $('select#node-input-pin_type option[value!="V"]').attr('disabled','disabled');
-            $("#node-input-pin_type").val('V');
-        } else {
-            $('select#node-input-pin_type option[value!="V"]').removeAttr('disabled');
-        }
+    $(document).on('change', 'select#node-input-type_connect', function () {
+      var typeConnect = this.value;
+      // if(typeConnect == 'ws' && $("#node-input-pin_type").val() != 'V') {}
+      if (typeConnect == 'ws') {
+        //$('select#node-input-pin_type option[value="D"]').attr('disabled','disabled');
+        $('select#node-input-pin_type option[value!="V"]').attr('disabled', 'disabled');
+        $("#node-input-pin_type").val('V');
+      } else {
+        $('select#node-input-pin_type option[value!="V"]').removeAttr('disabled');
+      }
     });
 
-    $(document).on('change', 'select#node-input-pin_type', function() {
-        var pinType = this.value;
-        if(pinType != 'V' && $("#node-input-type_connect").val() != 'api') {
-            // alert('Digital pin only send via API');
-            $("#node-input-type_connect").val('api');
-        }
+    $(document).on('change', 'select#node-input-pin_type', function () {
+      var pinType = this.value;
+      if (pinType != 'V' && $("#node-input-type_connect").val() != 'api') {
+        // alert('Digital pin only send via API');
+        $("#node-input-type_connect").val('api');
+      }
     });
-    
+
     function ws_label() {
-        _pin = 'no pin';
-        _type = '';
-        if(this.type == 'blynk-api-in-read') {
-	        _type = 'Read Event';
-        }
-        if(this.type == 'blynk-api-in-write') {
-	        _type = 'Write Event';
-        }
-        if(this.type == 'blynk-api-out-write') {
-	        _type = 'Write';
-        }
-        if(this.type == 'blynk-api-out-read') {
-	        _type = 'Read';
-        }
+      _pin = 'no pin';
+      _type = '';
+      switch (this.type) {
+        case 'blynk-api-in-read':
+          _type = 'Read Event';
+          break;
+        case 'blynk-api-in-write':
+          _type = 'Write Event';
+          break;
+        case 'blynk-api-out-read':
+          _type = 'Read';
+          break;
+        case 'blynk-api-out-write':
+          _type = 'Write';
+          break;
+        default:
+          break;
+      }
 
-        if(this.pin) {
-            if(this.pin_type) {
-                _pin = this.pin_type + this.pin + ' - ' +  _type;
-            } else {
-                _pin = this.pin + ' - ' +  _type;
-            }
-        }
-        if(this.pin_all) {
-            _pin = 'All Pins' + ' - ' +  _type;
-        }
-        if(this.type == "blynk-api-out-email") {
-	        return this.name || this.email || 'email';
-        }
-        if(this.type == "blynk-api-client") {
-	        return this.name || this.key || 'n/a';
-        }
-        console.log(this.name, _pin);
-        return this.name || _pin;
-    }
-       
-    function ws_validateclient() {
-        /* if($("#node-input-mode").val() === 'client' || (this.client && !this.server)) {
-            return RED.nodes.node(this.client) != null;
+      if (typeof this.pin === 'number') {
+        if (this.pin_type) {
+          _pin = this.pin_type + this.pin + ' - ' + _type;
         } else {
-            return true;
-        } */
-        
-        return true;
+          _pin = this.pin + ' - ' + _type;
+        }
+      }
+      if (this.pin_all) {
+        _pin = 'All Pins' + ' - ' + _type;
+      }
+      if (this.type == "blynk-api-out-email") {
+        return this.name || this.email || 'email';
+      }
+      if (this.type == "blynk-api-client") {
+        return this.name || this.key || 'n/a';
+      }
+
+      return this.name || _pin;
     }
 
-    RED.nodes.registerType('blynk-api-client',{
-        category: 'config',
-        defaults: {
-	        name: { value: ''},
-	        api: { value: ''},
-            path: {value: '', required:true, validate:RED.validators.regex(/^((?!\/debug\/ws).)*$/) },
-            key: {value: '', required:true}        
-        },
-        inputs:0,
-        outputs:0,
-        label: ws_label,
-        oneditsave: api_onConfigSave,
+    function ws_validateclient() {
+      /* if($("#node-input-mode").val() === 'client' || (this.client && !this.server)) {
+          return RED.nodes.node(this.client) != null;
+      } else {
+          return true;
+      } */
+
+      return true;
+    }
+
+    RED.nodes.registerType('blynk-api-client', {
+      category: 'config',
+      defaults: {
+        name: { value: '' },
+        api: { value: '' },
+        path: { value: '', required: true, validate: RED.validators.regex(/^((?!\/debug\/ws).)*$/) },
+        key: { value: '', required: true }
+      },
+      inputs: 0,
+      outputs: 0,
+      label: ws_label,
+      oneditsave: api_onConfigSave,
     });
-    
+
     RED.nodes.registerType('blynk-api-in-read', {
-        category: 'Blynk API',
-        paletteLabel: 'read event',
-        defaults: {
-            name: {value: ''},
-            pin: {value: 0},
-            pin_type: {value: 'V'},
-            pin_all: {value: 0},
-            client: {type:"blynk-api-client", validate: ws_validateclient}
-        },
-        color:"#1BC17C",
-        inputs:0,
-        outputs:1,
-        icon: "white-globe.png",
-        labelStyle: function() {
-            return this.name ? "node_label_italic" : "";
-        },
-        label: ws_label,
-        oneditsave: api_oneditsave,
-        oneditprepare: preparePinIn
+      category: 'Blynk API',
+      paletteLabel: 'read event',
+      defaults: {
+        name: { value: '' },
+        pin: { value: 0 },
+        pin_type: { value: 'V' },
+        pin_all: { value: 0 },
+        client: { type: "blynk-api-client", validate: ws_validateclient }
+      },
+      color: "#1BC17C",
+      inputs: 0,
+      outputs: 1,
+      icon: "white-globe.png",
+      labelStyle: function () {
+        return this.name ? "node_label_italic" : "";
+      },
+      label: ws_label,
+      oneditsave: api_oneditsave,
+      oneditprepare: preparePinIn
     });
 
-   RED.nodes.registerType('blynk-api-in-write', {
-        category: 'Blynk API',
-        paletteLabel: 'write event',
-        defaults: {
-            name: {value: ''},
-            pin: {value: 0},
-            pin_type: {value: 'V'},
-            pin_all: {value: 0},
-            client: {type: "blynk-api-client", validate: ws_validateclient}
-        },
-        color:"#1BC17C",
-        inputs:0,
-        outputs:1,
-        icon: "white-globe.png",
-        labelStyle: function() {
-            return this.name?"node_label_italic":"";
-        },
-        label: ws_label,
-        oneditsave: api_oneditsave,
-        oneditprepare: preparePinIn
-    });
-    
-    RED.nodes.registerType('blynk-api-out-write',{
-        category: 'Blynk API',
-        paletteLabel: 'write',
-        defaults: {
-            name: {value: ''},
-            type_connect: {value: 'ws'}, // ws - api
-            pin_type: {value: 'D'}, // Virtual - Digital - Analog
-            pin: {value: 0},
-            client: {type: "blynk-api-client", validate: ws_validateclient}
-        },
-        color:"#1BC17C",
-        inputs:1,
-        outputs:0,
-        icon: "white-globe.png",
-        align: "right",
-        labelStyle: function() {
-            return this.name ? "node_label_italic" : "";
-        },
-        label: ws_label,
-        oneditsave: api_oneditsave,
-        oneditprepare: ws_oneditprepare
+    RED.nodes.registerType('blynk-api-in-write', {
+      category: 'Blynk API',
+      paletteLabel: 'write event',
+      defaults: {
+        name: { value: '' },
+        pin: { value: 0 },
+        pin_type: { value: 'V' },
+        pin_all: { value: 0 },
+        client: { type: "blynk-api-client", validate: ws_validateclient }
+      },
+      color: "#1BC17C",
+      inputs: 0,
+      outputs: 1,
+      icon: "white-globe.png",
+      labelStyle: function () {
+        return this.name ? "node_label_italic" : "";
+      },
+      label: ws_label,
+      oneditsave: api_oneditsave,
+      oneditprepare: preparePinIn
     });
 
-    RED.nodes.registerType('blynk-api-out-read',{
-        category: 'Blynk API',
-        paletteLabel: 'read',
-        defaults: {
-            name: {value: ''},
-            type_connect: {value: 'api'}, // ws - api
-            pin_type: {value: 'D', required: true},
-            pin: {value: '', required: true},
-            client: {type: "blynk-api-client", validate: ws_validateclient}
-        },
-        color:"#1BC17C",
-        inputs:1,
-        outputs:1,
-        icon: "white-globe.png",
-        align: "right",
-        labelStyle: function() {
-            return this.name ? "node_label_italic" : "";
-        },
-        label: ws_label,
-        oneditsave: api_oneditsave,
-        oneditprepare: ws_oneditprepare
+    RED.nodes.registerType('blynk-api-out-write', {
+      category: 'Blynk API',
+      paletteLabel: 'write',
+      defaults: {
+        name: { value: '' },
+        type_connect: { value: 'ws' }, // ws - api
+        pin_type: { value: 'D' }, // Virtual - Digital - Analog
+        pin: { value: 0 },
+        client: { type: "blynk-api-client", validate: ws_validateclient }
+      },
+      color: "#1BC17C",
+      inputs: 1,
+      outputs: 0,
+      icon: "white-globe.png",
+      align: "right",
+      labelStyle: function () {
+        return this.name ? "node_label_italic" : "";
+      },
+      label: ws_label,
+      oneditsave: api_oneditsave,
+      oneditprepare: ws_oneditprepare
     });
-    
-    
-    RED.nodes.registerType('blynk-api-out-email',{
-        category: 'Blynk API',
-        paletteLabel: 'email',
-        defaults: {
-            name: {value: ''},
-            email: {},
-            client: {type: "blynk-api-client", validate: ws_validateclient}
-        },
-        color:"#1BC17C",
-        inputs:1,
-        outputs:0,
-        icon: "email.png",
-        align: "right",
-        labelStyle: function() {
-            return this.name?"node_label_italic":"";
-        },
-        label: ws_label,
-        oneditsave: api_oneditsave,
-        oneditprepare: ws_oneditprepare
+
+    RED.nodes.registerType('blynk-api-out-read', {
+      category: 'Blynk API',
+      paletteLabel: 'read',
+      defaults: {
+        name: { value: '' },
+        type_connect: { value: 'api' }, // ws - api
+        pin_type: { value: 'D', required: true },
+        pin: { value: '', required: true },
+        client: { type: "blynk-api-client", validate: ws_validateclient }
+      },
+      color: "#1BC17C",
+      inputs: 1,
+      outputs: 1,
+      icon: "white-globe.png",
+      align: "right",
+      labelStyle: function () {
+        return this.name ? "node_label_italic" : "";
+      },
+      label: ws_label,
+      oneditsave: api_oneditsave,
+      oneditprepare: ws_oneditprepare
     });
 
 
-})();
+    RED.nodes.registerType('blynk-api-out-email', {
+      category: 'Blynk API',
+      paletteLabel: 'email',
+      defaults: {
+        name: { value: '' },
+        email: {},
+        client: { type: "blynk-api-client", validate: ws_validateclient }
+      },
+      color: "#1BC17C",
+      inputs: 1,
+      outputs: 0,
+      icon: "email.png",
+      align: "right",
+      labelStyle: function () {
+        return this.name ? "node_label_italic" : "";
+      },
+      label: ws_label,
+      oneditsave: api_oneditsave,
+      oneditprepare: ws_oneditprepare
+    });
+
+
+  })();
 </script>
 
 

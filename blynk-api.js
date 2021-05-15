@@ -16,7 +16,8 @@
 
 module.exports = function(RED) {
   'use strict';
-  var ws = require('ws');
+  var debug = require('debug')('blynk-api')
+  var WebSocket = require('ws');
   var inspect = require('util').inspect;
   var DataView = require('buffer-dataview');
   var request = require('request');
@@ -78,12 +79,12 @@ module.exports = function(RED) {
 
   /*
     function send(socket, data) {
-        if (socket.readyState == ws.OPEN) {
+        if (socket.readyState == WebSocket.OPEN) {
             var commandAndBody = data.split(" ");
             var message = createMessage(commandAndBody);
             socket.send(message);
         } else {
-            console.log("The socket is not open.");
+            debug("The socket is not open.");
         }
     }
     
@@ -97,7 +98,7 @@ module.exports = function(RED) {
   function encodeCommand(command, msgId, body) {
     var BLYNK_HEADER_SIZE = 5;
     var bodyLength = body ? body.length : 0;
-    var bufArray = new Buffer(BLYNK_HEADER_SIZE + bodyLength);
+    var bufArray = Buffer.alloc(BLYNK_HEADER_SIZE + bodyLength);
     var dataview = new DataView(bufArray);
     dataview.setInt8(0, command);
     dataview.setInt16(1, msgId);
@@ -168,6 +169,7 @@ module.exports = function(RED) {
         return 'ILLEGAL_COMMAND_BODY';
     }
   }
+  
   //END BLYNK STUFF
 
   // A node red node that sets up a local websocket server
@@ -202,7 +204,7 @@ module.exports = function(RED) {
       // Connect to remote endpoint
       //should not start connection if no server or key
       node.working = false;
-      var socket = new ws(node.path);
+      var socket = new WebSocket(node.path);
       //socket.binaryType = 'arraybuffer'; //probably does not work
       node.server = socket; // keep for closing
       handleConnection(socket);
@@ -235,7 +237,7 @@ module.exports = function(RED) {
           cmd.type == MsgType.RESPONSE &&
           cmd.status == MsgStatus.OK
         ) {
-          // console.log('valid login, start everything');
+          // debug('valid login, start everything');
           node.working = true;
           node.emit('connected', '');
           //start ping
@@ -313,6 +315,33 @@ module.exports = function(RED) {
 
   RED.nodes.registerType('blynk-api-client', BlynkClientNode);
 
+  BlynkClientNode.prototype.sendMessage = function (msg) {
+    // Wait until the state of the socket is not ready and send the message when it is...
+    var that = this;
+    this.waitForSocketConnection(this.server, function () {
+      debug("message sent!!!");
+      that.server.send(msg);
+    });
+  }
+
+  // Make the function wait until the connection is made...
+  BlynkClientNode.prototype.waitForSocketConnection = function (socket, callback) {
+    var that = this;
+    setTimeout(
+      function () {
+        if (socket.readyState === 1) {
+          debug("Connection is made")
+          if (callback != null) {
+            callback();
+          }
+        } else {
+          debug("wait for connection...")
+          that.waitForSocketConnection(socket, callback);
+        }
+
+      }, 5); // wait 5 milisecond for the connection...
+  };
+
   BlynkClientNode.prototype.registerInputNode = function(/*Node*/ handler) {
     this._inputNodes.push(handler);
   };
@@ -326,15 +355,15 @@ module.exports = function(RED) {
   };
 
   BlynkClientNode.prototype.login = function(token) {
-    this.server.send(encodeCommand(MsgType.LOGIN, 1, token));
+    this.sendMessage(encodeCommand(MsgType.LOGIN, 1, token))
   };
 
   BlynkClientNode.prototype.ping = function() {
-    this.server.send(encodeCommand(MsgType.PING, 1, ''));
+    this.sendMessage(encodeCommand(MsgType.PING, 1, ''));
   };
 
   BlynkClientNode.prototype.virtualWrite = function(node, val) {
-    var server = this.server;
+    var that = this;
     var pinType = node.pin_type;
     var pin = node.pin;
     var typeConnect = node.type_connect;
@@ -367,13 +396,13 @@ module.exports = function(RED) {
         },
         function(error, response, body) {
           if (error) {
-            server.send(encodeCommand(MsgType.HARDWARE, 1, data));
+            that.sendMessage(encodeCommand(MsgType.HARDWARE, 1, data));
             return;
           }
         }
       );
     } else {
-      this.server.send(encodeCommand(MsgType.HARDWARE, 1, data));
+      that.sendMessage(encodeCommand(MsgType.HARDWARE, 1, data));
     }
   };
 
@@ -419,7 +448,7 @@ module.exports = function(RED) {
       });
     } else {
       // TODO: read pin value via socket
-      // this.server.send(encodeCommand(MsgType.HARDWARE, 1, data));
+      // this.sendMessage(encodeCommand(MsgType.HARDWARE, 1, data));
       node.error("TODO: read pin value via socket");
     }
   };
@@ -427,7 +456,7 @@ module.exports = function(RED) {
   BlynkClientNode.prototype.sendEmail = function(to, subject, message) {
     var values = [to, subject, message];
     var data = values.join('\0');
-    this.server.send(encodeCommand(MsgType.EMAIL, null, data));
+    this.sendMessage(encodeCommand(MsgType.EMAIL, null, data));
   };
 
   BlynkClientNode.prototype.handleWriteEvent = function(command) {
@@ -551,7 +580,7 @@ module.exports = function(RED) {
   /*
     WebSocketListenerNode.prototype.broadcast = function(data) {
         try {
-            this.server.send(data);
+            this.sendMessage(data);
         }
         catch(e) { // swallow any errors
             this.warn("ws:"+i+" : "+e);
@@ -670,7 +699,7 @@ module.exports = function(RED) {
     }
     this.on('input', function(msg) {
       var payload;
-      //console.log('writing');
+      // debug('writing');
       /*if (this.serverConfig.wholemsg) {
                 delete msg._session;
                 payload = JSON.stringify(msg);
@@ -703,8 +732,8 @@ module.exports = function(RED) {
         }
       }
       if (payload) {
-        //todo: check payload and validate
-        //console.log('write');
+        // todo: check payload and validate
+        // debug('write');
         node.serverConfig.virtualWrite(node, payload);
       }
     });
@@ -809,8 +838,8 @@ module.exports = function(RED) {
         }
       }
       if (payload) {
-        //todo: check payload and validate
-        //console.log('write');
+        // todo: check payload and validate
+        // debug('write');
         var subject = payload;
         if (msg.topic) {
           subject = msg.topic;
